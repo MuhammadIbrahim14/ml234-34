@@ -15,7 +15,16 @@ export default function Hero() {
 
   return (
       <section className="hero">
-        <div className="hero-bg"><Img src={IMG.heroField} alt="Farm field" /></div>
+        <div className="hero-bg">
+          <div className="hero-sky" aria-hidden="true">
+            <span className="sky-cloud c1" />
+            <span className="sky-cloud c2" />
+            <span className="sky-cloud c3" />
+            <span className="sky-cloud c4" />
+            <span className="sky-cloud c5" />
+          </div>
+          <Img src={IMG.heroField} alt="Farm field" />
+        </div>
         {[8, 22, 47, 68, 88].map((l, i) => (
           <Leaf key={i} className="fall" size={18 + (i % 3) * 6} style={{ left: l + "%", animationDelay: i * 2.2 + "s", animationDuration: 11 + i * 2 + "s" }} />
         ))}

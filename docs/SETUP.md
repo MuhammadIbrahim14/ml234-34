@@ -279,7 +279,7 @@ where user_id = (
 
 SRS §1.9 requires user credentials for all user types in the submission package — keep passwords out of git.
 
-**Session rule:** Different users/roles can stay logged in at the same time in **separate browser tabs** (auth uses `sessionStorage` per tab). The **same account** on two devices/browsers still replaces the previous session (single active device).
+**Session rule:** Different users/roles can stay logged in at the same time in **separate browser tabs** (per-tab `sessionStorage` + isolated auth BroadcastChannel). Open 3 tabs → login as customer / farmer / admin — each keeps its own session. The **same account** on two devices/browsers still replaces the previous session (single active device via `active_session_id`).
 
 ---
 

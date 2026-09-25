@@ -16,6 +16,7 @@ import Dashboard from './components/Dashboard';
 import Auth from './components/Auth';
 import RoleGuard from './components/RoleGuard';
 import SplashScreen from './components/SplashScreen';
+import ThemeShed, { useThemeShed } from './components/ThemeShed';
 import {
   MarketsPage,
   ProductsPage,
@@ -33,6 +34,7 @@ import './styles/marketlink.css';
 
 export default function App() {
   const [dark, setDark] = useState(() => localStorage.getItem('ml-theme') === 'dark');
+  const { setTheme, fx: shedFx, shedding } = useThemeShed(setDark, dark);
   const { count: cart } = useCart();
   const [toast, setToast] = useState('');
   const [route, setRoute] = useState(getRoute());
@@ -45,7 +47,6 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('ml-theme', dark ? 'dark' : 'light');
   }, [dark]);
-  const setTheme = (v) => setDark(typeof v === 'boolean' ? v : !dark);
   const showToast = (msg) => {
     setToast(msg);
     clearTimeout(window.__mlToast);
@@ -64,8 +65,9 @@ export default function App() {
     </div>
   );
   const shell = (children) => (
-    <div className={'ml' + (dark ? ' dark' : '')}>
+    <div className={'ml' + (dark ? ' dark' : '') + (shedding ? ' theme-shedding' : '')}>
       <SplashScreen />
+      <ThemeShed fx={shedFx} />
       {children}
       {toastEl}
     </div>

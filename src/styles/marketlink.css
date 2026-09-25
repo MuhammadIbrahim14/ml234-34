@@ -44,7 +44,7 @@ html {
   --script:#1c8a3c; --you:#12321a; --accent:#f4a51c;
   --nav:rgba(255,255,255,.78); --shadow:0 14px 34px -12px rgba(30,90,40,.25); --glow:0 8px 20px -8px rgba(28,138,60,.55);
   --chip:#f0f8e8; --input:#fff;
-  --hero-ov:linear-gradient(180deg,rgba(244,250,238,.55) 0%,rgba(244,250,238,.82) 55%,#f4faee 100%);
+  --hero-ov:linear-gradient(180deg,transparent 0%,transparent 42%,rgba(244,250,238,.35) 72%,#f4faee 100%);
   --map:#e6f3da; --road:#fff; --road2:#f3e1a4; --road3:#fff; --water:#b4dbf2; --park:#c9e6ae; --mtext:#63836a;
   --band:linear-gradient(110deg,#0c4321,#16652f 50%,#0c4321); --band-card:rgba(255,255,255,.08);
   --foot:#0b3a1e; --foot-text:#cfe4d2; --pin:#1c8a3c; --pin2:#6cc24a;
@@ -59,7 +59,7 @@ html {
   --script:#5dff9c; --you:#c6ffd9; --accent:#a7f3c4;
   --nav:rgba(2,6,4,.74); --shadow:0 18px 40px -14px rgba(0,0,0,.85); --glow:0 0 24px -4px rgba(57,255,136,.55);
   --chip:rgba(57,255,136,.05); --input:rgba(4,14,8,.85);
-  --hero-ov:linear-gradient(180deg,rgba(2,6,4,.62) 0%,rgba(2,6,4,.86) 60%,#020604 100%);
+  --hero-ov:linear-gradient(180deg,transparent 0%,transparent 38%,rgba(2,6,4,.28) 70%,#020604 100%);
   --map:#030a06; --road:#0e5a2b; --road2:#39ff88; --road3:#0a331a; --water:#05241a; --park:#05170d; --mtext:#5dff9c;
   --band:linear-gradient(110deg,#020a05,#06200f 50%,#020a05); --band-card:rgba(57,255,136,.05);
   --foot:#010302; --foot-text:#9cc4a8; --pin:#39ff88; --pin2:#c6ffd9;
@@ -148,11 +148,158 @@ html {
 /* ============ HERO ============ */
 .ml .hero{position:relative;padding:34px 0 50px;overflow:hidden}
 .ml .hero-bg{position:absolute;inset:0;z-index:0}
-.ml .hero-bg img{animation:kenburns 26s ease-in-out infinite alternate}
-.ml .hero-bg::after{content:"";position:absolute;inset:0;background:var(--hero-ov)}
+.ml .hero-bg > .img-fb,
+.ml .hero-bg > img{position:absolute;inset:0;z-index:0;width:100%;height:100%;object-fit:cover}
+.ml .hero-bg img{animation:kenburns 26s ease-in-out infinite alternate;filter:none}
+.ml .hero-bg::after{content:"";position:absolute;inset:0;z-index:2;background:var(--hero-ov);pointer-events:none}
+/* Moving sky over sharp field (no blur / heavy filters on the photo) */
+.ml .hero-sky{
+  position:absolute; inset:0; z-index:1; overflow:hidden; pointer-events:none;
+  background:linear-gradient(180deg,rgba(110,190,235,.5) 0%,rgba(180,220,245,.22) 32%,rgba(255,255,255,0) 58%);
+}
+.ml.dark .hero-sky{
+  background:linear-gradient(180deg,rgba(8,22,40,.55) 0%,rgba(10,36,24,.28) 36%,rgba(2,6,4,0) 62%);
+}
+.ml .sky-cloud{
+  position:absolute; display:block; border-radius:50%;
+  background:rgba(255,255,255,.9);
+  box-shadow:
+    28px 8px 0 -4px rgba(255,255,255,.85),
+    52px 4px 0 -8px rgba(255,255,255,.78),
+    -22px 10px 0 -6px rgba(255,255,255,.72),
+    12px -10px 0 -2px rgba(255,255,255,.82);
+  animation:skyDrift linear infinite;
+  opacity:.95;
+  will-change:transform;
+}
+.ml.dark .sky-cloud{
+  background:rgba(190,225,210,.28);
+  box-shadow:
+    28px 8px 0 -4px rgba(170,215,200,.22),
+    52px 4px 0 -8px rgba(150,200,185,.16),
+    -22px 10px 0 -6px rgba(160,210,195,.14),
+    12px -10px 0 -2px rgba(180,220,205,.18);
+  opacity:.9;
+}
+.ml .sky-cloud.c1{width:72px;height:28px;top:8%;left:-12%;animation-duration:48s}
+.ml .sky-cloud.c2{width:96px;height:34px;top:18%;left:-18%;animation-duration:62s;animation-delay:-12s;opacity:.8}
+.ml .sky-cloud.c3{width:58px;height:22px;top:5%;left:-8%;animation-duration:40s;animation-delay:-22s}
+.ml .sky-cloud.c4{width:110px;height:36px;top:26%;left:-20%;animation-duration:72s;animation-delay:-30s;opacity:.72}
+.ml .sky-cloud.c5{width:64px;height:24px;top:12%;left:-10%;animation-duration:54s;animation-delay:-8s}
 .ml .fall{position:absolute;top:-40px;color:var(--primary);opacity:.55;z-index:1;pointer-events:none;animation:fall linear infinite}
 .ml.dark .fall{filter:drop-shadow(0 0 6px var(--primary))}
 .ml .fall:nth-of-type(2n){color:var(--primary2)}
+
+/* Theme toggle — Harvest Eclipse (botanical iris + sun/moon sky flip) */
+.ml .theme-shed{
+  position:fixed; inset:0; z-index:9998; pointer-events:none; overflow:hidden;
+  display:grid; place-items:center;
+}
+.ml .theme-shed-veil{
+  position:absolute; inset:0;
+  background:rgba(8,20,12,.0);
+  animation:themeVeilPulse 2.2s ease-in-out both;
+}
+.ml .theme-shed--to-dark .theme-shed-veil{animation-name:themeVeilNight}
+.ml .theme-shed--to-light .theme-shed-veil{animation-name:themeVeilDawn}
+
+.ml .theme-shed-sky{
+  position:absolute; inset:0;
+  opacity:0;
+  animation:themeSkyBloom 2.2s cubic-bezier(.4,0,.2,1) both;
+}
+.ml .theme-shed--to-dark .theme-shed-sky{
+  background:
+    radial-gradient(ellipse 80% 55% at 50% 18%, rgba(120,160,255,.35), transparent 55%),
+    radial-gradient(circle at 50% 50%, #0a2414 0%, #020604 70%);
+}
+.ml .theme-shed--to-light .theme-shed-sky{
+  background:
+    radial-gradient(ellipse 90% 60% at 50% 20%, rgba(255,210,120,.55), transparent 50%),
+    radial-gradient(circle at 50% 60%, #d4f0a8 0%, #f4faee 65%);
+}
+
+.ml .theme-shed-orb{
+  position:relative; z-index:2;
+  width:min(72vmin,420px); height:min(72vmin,420px);
+  display:grid; place-items:center;
+  animation:themeOrbLife 2.2s cubic-bezier(.34,1.2,.45,1) both;
+}
+.ml .theme-shed-orb-core{
+  position:relative; z-index:3;
+  width:88px; height:88px; border-radius:50%;
+  display:grid; place-items:center;
+  background:radial-gradient(circle at 35% 30%,#fff8e7,#ffd36a 45%,#f0a020);
+  box-shadow:0 0 0 6px rgba(255,220,120,.35), 0 0 48px 8px rgba(255,180,40,.45);
+  animation:themeCorePulse 2.2s ease-in-out both;
+}
+.ml .theme-shed--to-dark .theme-shed-orb-core{
+  background:radial-gradient(circle at 35% 30%,#e8fff0,#7dffb0 40%,#1a5c38);
+  box-shadow:0 0 0 6px rgba(100,255,180,.25), 0 0 56px 10px rgba(57,255,136,.4);
+}
+.ml .theme-shed-celestial{
+  position:absolute; inset:0; display:grid; place-items:center;
+  color:#6b3d00; transition:none;
+}
+.ml .theme-shed--to-dark .theme-shed-celestial{color:#03200d}
+.ml .theme-shed-celestial--sun{animation:themeSunOut 2.2s ease both}
+.ml .theme-shed-celestial--moon{animation:themeMoonIn 2.2s ease both; opacity:0; transform:scale(.4) rotate(-40deg)}
+.ml .theme-shed--to-light .theme-shed-celestial--sun{animation:themeSunIn 2.2s ease both}
+.ml .theme-shed--to-light .theme-shed-celestial--moon{animation:themeMoonOut 2.2s ease both}
+.ml .theme-shed--from-dark.theme-shed--to-light .theme-shed-celestial--moon{opacity:1}
+.ml .theme-shed-spark{
+  position:absolute; right:-6px; top:-4px; color:#fff;
+  animation:themeSparkPop 2.2s ease both;
+  filter:drop-shadow(0 0 6px #fff);
+}
+
+.ml .theme-shed-iris{
+  position:absolute; inset:0;
+  animation:themeIrisSpin 2.2s cubic-bezier(.4,0,.2,1) both;
+}
+.ml .theme-shed-petal{
+  position:absolute; left:50%; top:50%;
+  width:40px; height:40px; margin:-20px;
+  color:#1c8a3c;
+  transform:rotate(var(--rot)) translateY(-28px) scale(.35);
+  transform-origin:center center;
+  animation:themePetalBloom 2.2s cubic-bezier(.34,1.15,.4,1) both;
+  animation-delay:calc(var(--p) * 18ms);
+  opacity:0;
+  filter:drop-shadow(0 4px 8px rgba(20,80,30,.35));
+}
+.ml .theme-shed--to-dark .theme-shed-petal{color:#7dffb0}
+.ml .theme-shed--to-light .theme-shed-petal{color:#239c46}
+
+.ml .theme-shed-ring{
+  position:absolute; inset:8%; border-radius:50%;
+  border:2px solid rgba(255,255,255,.35);
+  animation:themeRingExpand 2.2s ease-out both;
+}
+.ml .theme-shed-ring--2{inset:0; animation-delay:.08s; opacity:.5; border-style:dashed}
+
+.ml .theme-shed-star{
+  position:absolute; z-index:1; border-radius:50%;
+  background:#eafff4; box-shadow:0 0 8px 2px rgba(200,255,230,.8);
+  opacity:0; animation:themeStarTwinkle 1.4s ease both;
+}
+.ml .theme-shed-pollen{
+  position:absolute; left:50%; top:50%; z-index:4;
+  margin:-3px; border-radius:50%;
+  background:radial-gradient(circle,#fff9c4,#f4a51c);
+  box-shadow:0 0 10px rgba(244,165,28,.7);
+  opacity:0;
+  animation:themePollenBurst var(--p-dur,1s) cubic-bezier(.15,.8,.2,1) var(--p-delay,.6s) both;
+}
+.ml .theme-shed--to-dark .theme-shed-pollen{
+  background:radial-gradient(circle,#d4ffe8,#39ff88);
+  box-shadow:0 0 10px rgba(57,255,136,.7);
+}
+
+.ml.theme-shedding{overflow:hidden}
+.ml.theme-shedding > *:not(.theme-shed):not(.ml-splash){
+  animation:themeWorldBreathe 2.2s ease-in-out both;
+}
 .ml .hero-in{display:grid;grid-template-columns:1fr 1.05fr;gap:30px;align-items:center}
 .ml .rise{display:block;opacity:1;animation:none}
 .ml .crate-photo{position:absolute;left:-2%;bottom:0;width:170px;height:130px;border-radius:24px;overflow:hidden;border:5px solid var(--solid);box-shadow:var(--shadow)}
@@ -446,8 +593,8 @@ html {
 
 /* ============ DARK: pure black + greens (no purple / yellow) ============ */
 .ml.dark .aurora i{opacity:.22}
-.ml.dark .hero-bg img{filter:saturate(.35) brightness(.55) hue-rotate(35deg)}
-.ml.dark .hero-bg::before{content:"";position:absolute;inset:0;z-index:1;background:radial-gradient(ellipse at 75% 30%,rgba(57,255,136,.18),transparent 55%),radial-gradient(ellipse at 0% 100%,rgba(34,197,94,.25),transparent 50%)}
+.ml.dark .hero-bg img{filter:none}
+.ml.dark .hero-bg::before{content:none}
 .ml.dark .hero-h .brush{background-image:linear-gradient(90deg,#39ff88,#c6ffd9,#39ff88);filter:drop-shadow(0 0 18px rgba(57,255,136,.5))}
 .ml.dark .hero-h .you{animation:shimmer 5s linear infinite;background:linear-gradient(90deg,#22e36b,#b6ffcf,#22e36b);background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 16px rgba(57,255,136,.55))}
 .ml.dark .theme-sw{background:linear-gradient(90deg,#03140a,#0a2e17);color:#39ff88;border-color:rgba(57,255,136,.4)}
@@ -513,6 +660,108 @@ html {
 @keyframes shimmer{to{background-position:200% center}}
 @keyframes kenburns{from{transform:scale(1)}to{transform:scale(1.12) translate(-2%,-1%)}}
 @keyframes fall{0%{transform:translateY(0) rotate(0);opacity:0}10%{opacity:.6}90%{opacity:.5}100%{transform:translateY(720px) translateX(60px) rotate(360deg);opacity:0}}
+@keyframes skyDrift{
+  from{transform:translate3d(0,0,0)}
+  to{transform:translate3d(120vw,12px,0)}
+}
+@keyframes themeVeilNight{
+  0%{background:rgba(2,6,4,0)}
+  35%{background:rgba(2,6,4,.45)}
+  70%{background:rgba(2,6,4,.55)}
+  100%{background:rgba(2,6,4,0)}
+}
+@keyframes themeVeilDawn{
+  0%{background:rgba(255,240,200,0)}
+  35%{background:rgba(255,236,180,.35)}
+  70%{background:rgba(244,250,238,.4)}
+  100%{background:rgba(244,250,238,0)}
+}
+@keyframes themeSkyBloom{
+  0%{opacity:0; transform:scale(.55)}
+  28%{opacity:1; transform:scale(1.05)}
+  55%{opacity:1; transform:scale(1.15)}
+  100%{opacity:0; transform:scale(1.35)}
+}
+@keyframes themeOrbLife{
+  0%{transform:scale(.2); opacity:0}
+  18%{transform:scale(1); opacity:1}
+  55%{transform:scale(1.55); opacity:1}
+  78%{transform:scale(2.4); opacity:.85}
+  100%{transform:scale(3.2); opacity:0}
+}
+@keyframes themeCorePulse{
+  0%,100%{transform:scale(1)}
+  40%{transform:scale(1.12)}
+  70%{transform:scale(.92)}
+}
+@keyframes themeSunOut{
+  0%{opacity:1; transform:scale(1) rotate(0)}
+  40%{opacity:1; transform:scale(1.1) rotate(20deg)}
+  55%{opacity:0; transform:scale(.3) rotate(90deg)}
+  100%{opacity:0; transform:scale(0) rotate(120deg)}
+}
+@keyframes themeMoonIn{
+  0%,40%{opacity:0; transform:scale(.3) rotate(-50deg)}
+  55%{opacity:1; transform:scale(1.05) rotate(0)}
+  80%{opacity:1; transform:scale(1)}
+  100%{opacity:0; transform:scale(1.4)}
+}
+@keyframes themeSunIn{
+  0%,40%{opacity:0; transform:scale(.3) rotate(-40deg)}
+  55%{opacity:1; transform:scale(1.08) rotate(0)}
+  80%{opacity:1}
+  100%{opacity:0; transform:scale(1.35)}
+}
+@keyframes themeMoonOut{
+  0%{opacity:1; transform:scale(1)}
+  45%{opacity:0; transform:scale(.2) rotate(70deg)}
+  100%{opacity:0}
+}
+@keyframes themeSparkPop{
+  0%,30%{opacity:0; transform:scale(0)}
+  45%{opacity:1; transform:scale(1.3)}
+  70%{opacity:.8}
+  100%{opacity:0; transform:scale(1.8)}
+}
+@keyframes themeIrisSpin{
+  0%{transform:rotate(0)}
+  100%{transform:rotate(140deg)}
+}
+@keyframes themePetalBloom{
+  0%{opacity:0; transform:rotate(var(--rot)) translateY(-18px) scale(.2)}
+  22%{opacity:1; transform:rotate(var(--rot)) translateY(-52px) scale(1)}
+  48%{opacity:1; transform:rotate(var(--rot)) translateY(-92px) scale(1.15)}
+  72%{opacity:.9; transform:rotate(var(--rot)) translateY(-130px) scale(1.05)}
+  100%{opacity:0; transform:rotate(var(--rot)) translateY(-190px) scale(.6)}
+}
+@keyframes themeRingExpand{
+  0%{transform:scale(.4); opacity:0}
+  25%{opacity:.9}
+  100%{transform:scale(2.6); opacity:0}
+}
+@keyframes themeStarTwinkle{
+  0%{opacity:0; transform:scale(0)}
+  40%{opacity:1; transform:scale(1.4)}
+  70%{opacity:.85}
+  100%{opacity:0; transform:scale(.6)}
+}
+@keyframes themePollenBurst{
+  0%{
+    opacity:0;
+    transform:rotate(var(--ang)) translateX(0) scale(.4);
+  }
+  20%{opacity:1}
+  100%{
+    opacity:0;
+    transform:rotate(var(--ang)) translateX(var(--dist)) scale(1.2);
+  }
+}
+@keyframes themeWorldBreathe{
+  0%{transform:scale(1)}
+  35%{transform:scale(1.012)}
+  70%{transform:scale(1.006)}
+  100%{transform:scale(1)}
+}
 @keyframes marquee{to{transform:translateX(-50%)}}
 @keyframes drift{0%{transform:translate(0,0) scale(1)}100%{transform:translate(120px,-80px) scale(1.2)}}
 @keyframes drop{from{opacity:0;transform:translate(-50%,-220%)}to{opacity:1;transform:translate(-50%,-100%)}}
@@ -577,11 +826,11 @@ html {
 }
 
 /* ===== MarketLink polished dashboard + routing UI ===== */
-.ml.dark{--bg:#050806;--bg2:#09110c;--card:rgba(13,20,15,.92);--solid:#080d09;--border:rgba(126,167,125,.20);--text:#eef5ed;--muted:#9aaa99;--primary:#7ca66f;--primary2:#a9c69a;--soft:rgba(124,166,111,.12);--btn:linear-gradient(135deg,#7da86e,#496f43);--btn-flat:#6e965f;--btn-text:#f7fbf5;--glow:0 10px 28px -14px rgba(126,166,111,.55);--nav:rgba(5,8,6,.82);--foot:#030504;--foot-text:#a8b7a6;--hero-ov:linear-gradient(180deg,rgba(5,8,6,.48),rgba(5,8,6,.78) 60%,#050806 100%);--a1:#29432b;--a2:#203a27;--a3:#31503a}
+.ml.dark{--bg:#050806;--bg2:#09110c;--card:rgba(13,20,15,.92);--solid:#080d09;--border:rgba(126,167,125,.20);--text:#eef5ed;--muted:#9aaa99;--primary:#7ca66f;--primary2:#a9c69a;--soft:rgba(124,166,111,.12);--btn:linear-gradient(135deg,#7da86e,#496f43);--btn-flat:#6e965f;--btn-text:#f7fbf5;--glow:0 10px 28px -14px rgba(126,166,111,.55);--nav:rgba(5,8,6,.82);--foot:#030504;--foot-text:#a8b7a6;--hero-ov:linear-gradient(180deg,transparent 0%,transparent 40%,rgba(5,8,6,.32) 72%,#050806 100%);--a1:#29432b;--a2:#203a27;--a3:#31503a}
 .ml.dark .theme-sw{background:#0d160f;color:#9bb693;border-color:#344a35}.ml.dark .theme-sw .knob{background:#7ca66f;color:#071008;box-shadow:0 3px 12px rgba(124,166,111,.3)}
 .ml.dark .hero-h .brush,.ml.dark .hero-h .you{filter:none;text-shadow:none;background-image:linear-gradient(90deg,#9fbe91,#d3e4ca,#9fbe91)}
 .ml.dark .photo,.ml.dark .fcard,.ml.dark .pcard,.ml.dark .fmcard{border-color:rgba(124,166,111,.24);box-shadow:0 18px 40px -20px rgba(0,0,0,.9)}
-.ml.dark .fall{filter:none}.ml.dark .hero-bg img{filter:saturate(.55) brightness(.48)}
+.ml.dark .fall{filter:none}.ml.dark .hero-bg img{filter:none}
 .nav-logo-btn{padding:0;border:0;background:transparent}.theme-floating{position:fixed;right:22px;bottom:22px;z-index:90}
 
 /* auth — MarketLink themed login / register / forgot */

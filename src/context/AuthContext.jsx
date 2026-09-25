@@ -203,32 +203,40 @@ export function AuthProvider({ children }) {
       // Defer Supabase calls — calling auth APIs inside this callback can deadlock signIn
       setTimeout(async () => {
         if (!mounted) return;
-        if (event === 'SIGNED_OUT') {
+
+        // Always trust THIS tab's sessionStorage — never adopt another tab's
+        // BroadcastChannel payload (that was wiping multi-role logins).
+        let tabSession = nextSession;
+        try {
+          const { data: stored } = await supabase.auth.getSession();
+          tabSession = stored.session;
+        } catch {
+          /* keep nextSession fallback */
+        }
+
+        if (!tabSession?.user) {
           clearLocalSessionId();
           setSession(null);
           setProfile(null);
           setLoading(false);
           return;
         }
-        setSession(nextSession);
-        if (nextSession?.user) {
-          try {
-            const p = await fetchProfile(nextSession.user.id);
-            if (
-              !isLocalSessionValid(p) &&
-              event !== 'SIGNED_IN' &&
-              event !== 'TOKEN_REFRESHED' &&
-              event !== 'INITIAL_SESSION'
-            ) {
-              await forceLocalSignOut();
-              return;
-            }
-            if (mounted) setProfile(p);
-          } catch (err) {
-            console.warn('[MarketLink] auth profile:', err?.message || err);
+
+        setSession(tabSession);
+        try {
+          const p = await fetchProfile(tabSession.user.id);
+          if (
+            !isLocalSessionValid(p) &&
+            event !== 'SIGNED_IN' &&
+            event !== 'TOKEN_REFRESHED' &&
+            event !== 'INITIAL_SESSION'
+          ) {
+            await forceLocalSignOut();
+            return;
           }
-        } else {
-          setProfile(null);
+          if (mounted) setProfile(p);
+        } catch (err) {
+          console.warn('[MarketLink] auth profile:', err?.message || err);
         }
         setLoading(false);
       }, 0);
