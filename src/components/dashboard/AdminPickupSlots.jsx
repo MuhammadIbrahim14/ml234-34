@@ -1,10 +1,22 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { listAllFarmerProfiles } from '../../lib/api/farmers';
 import { LoadingBlock, ErrorBanner, EmptyState, DemoModeNotice } from '../ui/DataState';
+import { DataView, DataViewToolbar, DataCard, useDataViewMode } from '../ui/DataView';
 import { isSupabaseConfigured } from '../../lib/supabase';
+
+function formatWindows(windows) {
+  if (!Array.isArray(windows) || !windows.length) return '';
+  return windows
+    .map((w) => w.label || `${w.day} ${w.start}–${w.end}`)
+    .filter(Boolean)
+    .join(' · ');
+}
 
 /** Read-only view of farmer pickup_windows for admin/manager. */
 export default function AdminPickupSlots() {
+  const { t } = useTranslation();
+  const { mode, setMode } = useDataViewMode('admin-pickup-slots');
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -22,7 +34,7 @@ export default function AdminPickupSlots() {
   }, []);
 
   if (!isSupabaseConfigured) return <DemoModeNotice />;
-  if (loading) return <LoadingBlock label="Loading pickup windows…" />;
+  if (loading) return <LoadingBlock label={t('dash.admin.loadingSlots')} />;
 
   const withWindows = rows.filter((f) => Array.isArray(f.pickup_windows) && f.pickup_windows.length);
 
@@ -30,40 +42,41 @@ export default function AdminPickupSlots() {
     <div className="dash-panel">
       <div className="panel-title">
         <div>
-          <span className="eyebrow">Schedule</span>
-          <h3>Pickup slots (from farmers)</h3>
+          <span className="eyebrow">{t('dash.admin.schedule')}</span>
+          <h3>{t('dash.admin.pickupSlots')}</h3>
         </div>
+        {withWindows.length > 0 && <DataViewToolbar mode={mode} onChange={setMode} />}
       </div>
       <p className="muted" style={{ marginTop: 0 }}>
-        Read-only list of pickup windows farmers set under their stall profile.
+        {t('dash.admin.pickupSlotsHint')}
       </p>
       <ErrorBanner message={error} onRetry={load} />
       {!withWindows.length ? (
-        <EmptyState title="No pickup windows yet" message="When farmers add pickup windows, they will show here." />
+        <EmptyState title={t('dash.admin.noSlots')} message={t('dash.admin.noSlotsMsg')} />
       ) : (
-        <div className="mini-table">
-          <div className="tr head">
-            <span>Farmer</span>
-            <span>Windows</span>
-            <span>Status</span>
-          </div>
+        <DataView mode={mode}>
           {withWindows.map((f) => (
-            <div className="tr" key={f.id}>
-              <span>
-                <b>{f.stall_name}</b>
-                <small>{f.profiles?.full_name || f.contact_person || f.profiles?.email || '—'}</small>
-              </span>
-              <span>
-                <small>
-                  {(f.pickup_windows || [])
-                    .map((w) => w.label || `${w.day} ${w.start}–${w.end}`)
-                    .join(' · ')}
-                </small>
-              </span>
-              <span className="status s1">{f.approved ? 'Approved' : 'Pending'}</span>
-            </div>
+            <DataCard
+              key={f.id}
+              title={f.stall_name}
+              subtitle={f.profiles?.full_name || f.contact_person || f.profiles?.email || '—'}
+              status={f.approved ? t('status.approved') : t('dash.admin.pendingStatus')}
+              statusClass={f.approved ? 's2' : 's1'}
+              details={[
+                {
+                  label: t('dash.fields.contact'),
+                  value: f.profiles?.full_name || f.contact_person || f.profiles?.email,
+                },
+                { label: t('dash.colWindows'), value: formatWindows(f.pickup_windows) },
+                {
+                  label: t('dash.fields.approved'),
+                  value: f.approved ? t('status.approved') : t('dash.admin.pendingStatus'),
+                },
+                { label: 'ID', value: f.id },
+              ]}
+            />
           ))}
-        </div>
+        </DataView>
       )}
     </div>
   );

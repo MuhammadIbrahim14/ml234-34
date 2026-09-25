@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { navigate } from '../../router';
 import { MapPin, ArrowRight, Users, ChevronLeft, ChevronRight, BadgeCheck } from 'lucide-react';
 import { listApprovedFarmers, farmerProductTags } from '../../lib/api/farmers';
@@ -8,6 +9,7 @@ import HeartBtn from '../../components/HeartBtn';
 import { EmptyState, LoadingBlock, DemoModeNotice } from '../ui/DataState';
 
 export default function Farmers() {
+  const { t } = useTranslation();
   const carRef = useRef(null);
   const scroll = (d) => carRef.current?.scrollBy({ left: d * 250, behavior: 'smooth' });
   const [rows, setRows] = useState([]);
@@ -34,24 +36,24 @@ export default function Farmers() {
     <section className="farm-sec">
       <div className="wrap farm-in">
         <div className="farm-l reveal">
-          <span className="eyebrow">Meet The Farmers</span>
+          <span className="eyebrow">{t('home.farmersEyebrow')}</span>
           <h2 className="with-ic">
-            <Users size={24} className="hic" /> Real People. Real Produce.
+            <Users size={24} className="hic" /> {t('home.farmersTitle')}
           </h2>
-          <p className="muted">Get to know the hardworking farmers behind your food. Support local. Build a stronger community.</p>
+          <p className="muted">{t('home.farmersLead')}</p>
           <button type="button" onClick={() => navigate('/farmers')} className="btn ghost">
-            View All Farmers <ArrowRight size={15} />
+            {t('home.viewAll')} <ArrowRight size={15} />
           </button>
         </div>
         <div className="car-wrap reveal">
           <DemoModeNotice />
           {loading ? (
-            <LoadingBlock label="Loading farmers…" />
+            <LoadingBlock label={t('common.loading')} />
           ) : !rows.length ? (
-            <EmptyState title="No approved farmers yet" message="Approved stalls will appear in this carousel." />
+            <EmptyState title={t('home.farmersEmpty')} message={t('common.emptyMessage')} />
           ) : (
             <>
-              <button className="arrow l" type="button" onClick={() => scroll(-1)} aria-label="Previous">
+              <button className="arrow l" type="button" onClick={() => scroll(-1)} aria-label={t('home.prev')}>
                 <ChevronLeft size={18} />
               </button>
               <div className="carousel" ref={carRef}>
@@ -60,26 +62,26 @@ export default function Farmers() {
                     <div className="fmimg">
                       <Img src={f.profiles?.avatar_url || IMG.avatar} alt={f.stall_name} />
                       <HeartBtn farmerId={f.user_id} />
-                      <span className="vbadge">Verified</span>
+                      <span className="vbadge">{t('common.verified')}</span>
                     </div>
                     <div className="fmbody">
                       <b>
                         {f.stall_name} <BadgeCheck size={15} className="vcheck" />
                       </b>
-                      <small className="role">{f.contact_person || f.profiles?.full_name || 'Local farmer'}</small>
+                      <small className="role">{f.contact_person || f.profiles?.full_name || t('home.localFarmer')}</small>
                       <small>
-                        <MapPin size={12} /> {f.profiles?.address || 'Local market'}
+                        <MapPin size={12} /> {f.profiles?.address || t('home.localMarket')}
                       </small>
                       <div className="tags">
-                        {(tagsMap[f.user_id] || []).map((t) => (
-                          <span key={t}>{t}</span>
+                        {(tagsMap[f.user_id] || []).map((tag) => (
+                          <span key={tag}>{tag}</span>
                         ))}
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
-              <button className="arrow r" type="button" onClick={() => scroll(1)} aria-label="Next">
+              <button className="arrow r" type="button" onClick={() => scroll(1)} aria-label={t('home.next')}>
                 <ChevronRight size={18} />
               </button>
             </>

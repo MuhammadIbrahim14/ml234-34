@@ -5,6 +5,7 @@ import Navbar from './components/sections/Navbar';
 import Hero from './components/sections/Hero';
 import Ticker from './components/sections/Ticker';
 import ExploreMap from './components/sections/ExploreMap';
+import YourMarkets from './components/sections/YourMarkets';
 import FreshPicks from './components/sections/FreshPicks';
 import Farmers from './components/sections/Farmers';
 import HowItWorks from './components/sections/HowItWorks';
@@ -17,6 +18,10 @@ import Auth from './components/Auth';
 import RoleGuard from './components/RoleGuard';
 import SplashScreen from './components/SplashScreen';
 import ThemeShed, { useThemeShed } from './components/ThemeShed';
+import FaqChatbot from './components/FaqChatbot';
+import JudgeTour from './components/JudgeTour';
+import LandingMotion from './components/LandingMotion';
+import RolePitchStrip from './components/sections/RolePitchStrip';
 import {
   MarketsPage,
   ProductsPage,
@@ -88,7 +93,12 @@ export default function App() {
     );
   }
   if (route === '/login' || route === '/register') {
-    return shell(<Auth mode={route.slice(1)} />);
+    return shell(
+      <>
+        <Auth mode={route.slice(1)} />
+        <FaqChatbot />
+      </>
+    );
   }
   const pageMap = {
     '/markets': <MarketsPage />,
@@ -113,19 +123,23 @@ export default function App() {
       {page ? (
         page
       ) : (
-        <>
+        <LandingMotion>
           <Hero />
           <Ticker />
           <ExploreMap />
+          <YourMarkets />
           <FreshPicks onToast={showToast} />
           <Farmers />
           <HowItWorks />
+          <RolePitchStrip />
           <DashboardBand />
           <Surplus />
           <CallToAction />
-        </>
+        </LandingMotion>
       )}
       <Footer dark={dark} setTheme={setTheme} />
+      <JudgeTour />
+      <FaqChatbot />
     </>
   );
 }

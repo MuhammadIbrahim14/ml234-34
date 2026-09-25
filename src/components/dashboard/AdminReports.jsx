@@ -1,10 +1,15 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
-import { getOrdersByDateRange, saveReport } from '../../lib/api/admin';
-import { LoadingBlock, ErrorBanner, DemoModeNotice, SuccessNote } from '../ui/DataState';
+import { getOrdersByDateRange, saveReport, revenueByMarket, topFarmersByRevenue } from '../../lib/api/admin';
+import { LoadingBlock, ErrorBanner, EmptyState, DemoModeNotice, SuccessNote } from '../ui/DataState';
+import { DataView, DataViewToolbar, DataCard, useDataViewMode } from '../ui/DataView';
 
 export default function AdminReports() {
+  const { t } = useTranslation();
   const { user, isConfigured } = useAuth();
+  const marketsView = useDataViewMode('admin-reports-markets');
+  const farmersView = useDataViewMode('admin-reports-farmers');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [summary, setSummary] = useState(null);
@@ -24,12 +29,15 @@ export default function AdminReports() {
       setError(err);
       return;
     }
-    const completed = (data || []).filter((o) => o.order_status === 'completed');
+    const rows = data || [];
+    const completed = rows.filter((o) => o.order_status === 'completed');
     setSummary({
-      total: data.length,
+      total: rows.length,
       completed: completed.length,
       revenue: completed.reduce((s, o) => s + Number(o.total_amount || 0), 0),
-      placed: (data || []).filter((o) => o.order_status === 'placed').length,
+      placed: rows.filter((o) => o.order_status === 'placed').length,
+      byMarket: revenueByMarket(rows),
+      topFarmers: topFarmersByRevenue(rows, { limit: 10 }),
     });
   }
 
@@ -48,7 +56,7 @@ export default function AdminReports() {
     });
     setBusy(false);
     if (err) setError(err);
-    else setOk('Report saved.');
+    else setOk(t('dash.admin.reportSaved'));
   }
 
   if (!isConfigured) return <DemoModeNotice />;
@@ -57,49 +65,104 @@ export default function AdminReports() {
     <div className="dash-panel action-panel">
       <div className="panel-title">
         <div>
-          <span className="eyebrow">Analytics</span>
-          <h3>Order reports</h3>
+          <span className="eyebrow">{t('dash.admin.analytics')}</span>
+          <h3>{t('dash.admin.orderReports')}</h3>
         </div>
       </div>
       <ErrorBanner message={error} />
       <SuccessNote message={ok} />
       <div className="form-grid">
         <label>
-          From
+          {t('dash.admin.from')}
           <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
         </label>
         <label>
-          To
+          {t('dash.admin.to')}
           <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
         </label>
         <button type="button" className="btn" onClick={run} disabled={loading}>
-          {loading ? 'Loading…' : 'Run report'}
+          {loading ? t('common.loading') : t('dash.admin.runReport')}
         </button>
         <button type="button" className="btn ghost" onClick={persist} disabled={!summary || busy}>
-          Save snapshot
+          {t('dash.admin.saveSnapshot')}
         </button>
       </div>
       {loading ? (
-        <LoadingBlock label="Computing…" />
+        <LoadingBlock label={t('dash.admin.computing')} />
       ) : summary ? (
-        <div className="dash-stats" style={{ marginTop: 16 }}>
-          <div className="dash-stat">
-            <small>Orders</small>
-            <strong>{summary.total}</strong>
+        <>
+          <div className="dash-stats" style={{ marginTop: 16 }}>
+            <div className="dash-stat">
+              <small>{t('dash.admin.orders')}</small>
+              <strong>{summary.total}</strong>
+            </div>
+            <div className="dash-stat">
+              <small>{t('dash.admin.pending')}</small>
+              <strong>{summary.placed}</strong>
+            </div>
+            <div className="dash-stat">
+              <small>{t('dash.admin.completed')}</small>
+              <strong>{summary.completed}</strong>
+            </div>
+            <div className="dash-stat">
+              <small>{t('dash.admin.revenue')}</small>
+              <strong>Rs {summary.revenue.toLocaleString()}</strong>
+            </div>
           </div>
-          <div className="dash-stat">
-            <small>Pending</small>
-            <strong>{summary.placed}</strong>
+
+          <div className="panel-title" style={{ marginTop: 24 }}>
+            <div>
+              <span className="eyebrow">{t('dash.admin.marketsEyebrow')}</span>
+              <h3>{t('dash.admin.revenueByMarket')}</h3>
+            </div>
+            {summary.byMarket?.length > 0 && (
+              <DataViewToolbar mode={marketsView.mode} onChange={marketsView.setMode} />
+            )}
           </div>
-          <div className="dash-stat">
-            <small>Completed</small>
-            <strong>{summary.completed}</strong>
+          {!summary.byMarket?.length ? (
+            <EmptyState title={t('dash.admin.noCompletedSales')} message={t('dash.admin.noCompletedSalesMsg')} />
+          ) : (
+            <DataView mode={marketsView.mode}>
+              {summary.byMarket.map((m) => (
+                <DataCard
+                  key={m.marketId ?? 'none'}
+                  title={m.marketName}
+                  details={[
+                    { label: t('dash.admin.orders'), value: String(m.orders) },
+                    { label: t('dash.colRevenue'), value: `Rs ${m.revenue.toLocaleString()}` },
+                  ]}
+                />
+              ))}
+            </DataView>
+          )}
+
+          <div className="panel-title" style={{ marginTop: 24 }}>
+            <div>
+              <span className="eyebrow">{t('dash.admin.farmers')}</span>
+              <h3>{t('dash.admin.topFarmers')}</h3>
+            </div>
+            {summary.topFarmers?.length > 0 && (
+              <DataViewToolbar mode={farmersView.mode} onChange={farmersView.setMode} />
+            )}
           </div>
-          <div className="dash-stat">
-            <small>Revenue</small>
-            <strong>Rs {summary.revenue.toLocaleString()}</strong>
-          </div>
-        </div>
+          {!summary.topFarmers?.length ? (
+            <EmptyState title={t('dash.admin.noFarmerSales')} message={t('dash.admin.noFarmerSalesMsg')} />
+          ) : (
+            <DataView mode={farmersView.mode}>
+              {summary.topFarmers.map((f) => (
+                <DataCard
+                  key={f.farmerId}
+                  title={f.name}
+                  details={[
+                    { label: t('dash.admin.orders'), value: String(f.orders) },
+                    { label: t('dash.colRevenue'), value: `Rs ${f.revenue.toLocaleString()}` },
+                    { label: 'ID', value: f.farmerId },
+                  ]}
+                />
+              ))}
+            </DataView>
+          )}
+        </>
       ) : null}
     </div>
   );

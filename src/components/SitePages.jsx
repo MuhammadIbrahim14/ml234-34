@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, MapPin, Search, ShoppingCart, Heart, Send, Filter, CheckCircle2, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { ArrowRight, MapPin, Search, ShoppingCart, Heart, Send, Filter, CheckCircle2, Trash2, Star, Bell } from 'lucide-react';
 import Img from './Img';
 import { navigate } from '../router';
 import { useCart } from '../context/CartContext';
@@ -8,26 +9,180 @@ import { listMarkets } from '../lib/api/markets';
 import { listProducts, productFarmerName } from '../lib/api/products';
 import { listCategories } from '../lib/api/categories';
 import { listApprovedFarmers, farmerProductTags, getMyFarmerProfile } from '../lib/api/farmers';
-import { createOrders, listOrdersForCustomer, cancelOrder } from '../lib/api/orders';
+import { createOrders, listOrdersForCustomer, cancelOrder, modifyOrderItems, canCustomerEditOrder, getOrderCutoffMinutes, getOrderEditCutoffAt } from '../lib/api/orders';
 import { listFavorites, toggleProductFavorite } from '../lib/api/favorites';
-import { createReview } from '../lib/api/reviews';
+import { createReview, listReviewsForProduct, listReviewsForFarmer } from '../lib/api/reviews';
+import { toggleRestockAlert, hasRestockAlert } from '../lib/api/restockAlerts';
+import { listPreferredMarkets, togglePreferredMarket, isMarketPreferred } from '../lib/api/preferredMarkets';
+import { googleDirectionsUrl, osmDirectionsUrl, hasCoords } from '../lib/api/geo';
 import { IMG } from '../data/data';
 import { LoadingBlock, ErrorBanner, EmptyState, DemoModeNotice } from './ui/DataState';
+import { DataView, DataViewToolbar, DataCard, useDataViewMode } from './ui/DataView';
 import HeartBtn from './HeartBtn';
 import MarketsOsmMap from './MarketsOsmMap';
 
+const OPERATING_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+function statusLabel(t, status) {
+  if (!status) return '';
+  return t(`status.${status}`, { defaultValue: status });
+}
+
 function Header({ title, sub }) {
+  const { t } = useTranslation();
   return (
     <div className="inner-page-head wrap">
-      <span className="eyebrow">MarketLink</span>
+      <span className="eyebrow">{t('pages.brand')}</span>
       <h1>{title}</h1>
       <p>{sub}</p>
     </div>
   );
 }
 
+function Stars({ rating }) {
+  const { t } = useTranslation();
+  const n = Math.max(0, Math.min(5, Number(rating) || 0));
+  return (
+    <span className="review-stars" aria-label={t('pages.starsAria', { n })}>
+      {Array.from({ length: 5 }, (_, i) => (
+        <Star key={i} size={14} fill={i < n ? 'currentColor' : 'none'} />
+      ))}
+    </span>
+  );
+}
+
+function ReviewList({ reviews, emptyMessage }) {
+  const { t } = useTranslation();
+  const empty = emptyMessage ?? t('pages.noReviews');
+  if (!reviews?.length) {
+    return <p className="muted review-empty">{empty}</p>;
+  }
+  return (
+    <ul className="review-list">
+      {reviews.map((r) => (
+        <li key={r.review_id}>
+          <div className="review-meta">
+            <Stars rating={r.rating} />
+            <small>{r.profiles?.full_name || t('pages.customer')}</small>
+          </div>
+          {r.comment ? <p>{r.comment}</p> : <p className="muted">{t('pages.noComment')}</p>}
+          {r.farmer_response ? (
+            <small className="review-response">
+              {t('pages.farmerPrefix')} {r.farmer_response}
+            </small>
+          ) : null}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function DirectionsLinks({ lat, lng }) {
+  const { t } = useTranslation();
+  const g = googleDirectionsUrl(lat, lng);
+  const o = osmDirectionsUrl(lat, lng);
+  if (!g && !o) return null;
+  return (
+    <div className="directions-links">
+      {g && (
+        <a className="btn sm ghost" href={g} target="_blank" rel="noopener noreferrer">
+          {t('pages.googleDirections')}
+        </a>
+      )}
+      {o && (
+        <a className="btn sm ghost" href={o} target="_blank" rel="noopener noreferrer">
+          {t('pages.osmDirections')}
+        </a>
+      )}
+    </div>
+  );
+}
+
+function NotifyRestockBtn({ productId, outOfStock }) {
+  const { t } = useTranslation();
+  const { user, isAuthenticated, isConfigured } = useAuth();
+  const [on, setOn] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!outOfStock || !isConfigured || !isAuthenticated || !user?.id || !productId) return;
+      const sub = await hasRestockAlert(user.id, productId);
+      if (!cancelled) setOn(sub);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [productId, user?.id, isAuthenticated, isConfigured, outOfStock]);
+
+  if (!outOfStock) return null;
+
+  async function onClick(e) {
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    if (!isConfigured) return;
+    setBusy(true);
+    const { subscribed, error } = await toggleRestockAlert(user.id, productId);
+    if (!error) setOn(subscribed);
+    setBusy(false);
+  }
+
+  return (
+    <button type="button" className={'btn sm ghost' + (on ? ' on' : '')} disabled={busy} onClick={onClick}>
+      <Bell size={14} /> {on ? t('pages.alertSet') : t('pages.notifyBack')}
+    </button>
+  );
+}
+
+function PreferMarketBtn({ marketId, onToggled }) {
+  const { t } = useTranslation();
+  const { user, isAuthenticated, isConfigured } = useAuth();
+  const [on, setOn] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!isConfigured || !isAuthenticated || !user?.id || marketId == null) return;
+      const pref = await isMarketPreferred(user.id, marketId);
+      if (!cancelled) setOn(pref);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [marketId, user?.id, isAuthenticated, isConfigured]);
+
+  async function onClick(e) {
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    if (!isConfigured) return;
+    setBusy(true);
+    const { preferred, error } = await togglePreferredMarket(user.id, marketId);
+    if (!error) {
+      setOn(preferred);
+      onToggled?.(preferred);
+    }
+    setBusy(false);
+  }
+
+  return (
+    <button type="button" className={'btn sm ghost' + (on ? ' on' : '')} disabled={busy} onClick={onClick} aria-label={t('pages.preferMarketAria')}>
+      <Heart size={14} fill={on ? 'currentColor' : 'none'} /> {on ? t('pages.preferred') : t('pages.prefer')}
+    </button>
+  );
+}
+
 export function MarketsPage() {
+  const { t } = useTranslation();
   const [rows, setRows] = useState([]);
+  const [farmers, setFarmers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
@@ -35,30 +190,32 @@ export function MarketsPage() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const { data, error: err } = await listMarkets({ activeOnly: true });
-      setRows(data || []);
-      setSelectedId(data?.[0]?.market_id ?? null);
-      setError(err);
+      const [mRes, fRes] = await Promise.all([listMarkets({ activeOnly: true }), listApprovedFarmers({ limit: 80 })]);
+      setRows(mRes.data || []);
+      setFarmers(fRes.data || []);
+      setSelectedId(mRes.data?.[0]?.market_id ?? null);
+      setError(mRes.error);
       setLoading(false);
     })();
   }, []);
 
   return (
     <>
-      <Header title="Explore Farmers Markets" sub="Find fresh local produce, market days and convenient pickup points." />
+      <Header title={t('pages.marketsTitle')} sub={t('pages.marketsLead')} />
       <div className="wrap">
         <DemoModeNotice />
         {loading ? (
-          <LoadingBlock label="Loading markets…" />
+          <LoadingBlock label={t('common.loading')} />
         ) : error ? (
           <ErrorBanner message={error} />
         ) : !rows.length ? (
-          <EmptyState title="No markets yet" message="Active markets will appear here once an admin adds them." />
+          <EmptyState title={t('pages.marketsEmpty')} message={t('pages.marketsEmptyHint')} />
         ) : (
           <>
             <div className="markets-map-block" style={{ marginBottom: 24 }}>
               <MarketsOsmMap
                 markets={rows}
+                farmers={farmers}
                 selectedId={selectedId}
                 onSelect={(m) => setSelectedId(m.market_id)}
                 height={360}
@@ -66,7 +223,7 @@ export function MarketsPage() {
             </div>
             <div className="catalog-grid">
               {rows.map((m) => {
-                const hasCoords = m.latitude != null && m.longitude != null;
+                const coordsOk = hasCoords(m.latitude, m.longitude);
                 return (
                   <article
                     className={'catalog-card' + (selectedId === m.market_id ? ' sel' : '')}
@@ -75,20 +232,24 @@ export function MarketsPage() {
                   >
                     <div className="catalog-img">
                       <Img src={IMG.marketFallback} alt={m.market_name} />
-                      <span>{m.is_active ? 'Open' : 'Closed'}</span>
+                      <span>{m.is_active ? t('common.open') : t('common.closed')}</span>
                     </div>
                     <div className="catalog-body">
                       <h3>{m.market_name}</h3>
                       <p>
-                        <MapPin size={14} /> {m.address || 'Address coming soon'}
+                        <MapPin size={14} /> {m.address || t('home.addressTbd')}
                       </p>
                       <small>
-                        {(m.operating_days || []).join(', ') || 'Days TBD'}
+                        {(m.operating_days || []).join(', ') || t('home.scheduleTbd')}
                         {m.timings ? ` · ${m.timings}` : ''}
-                        {hasCoords ? '' : ' · location pending'}
+                        {coordsOk ? '' : ` · ${t('pages.locationPending')}`}
                       </small>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+                        <PreferMarketBtn marketId={m.market_id} />
+                        {coordsOk && <DirectionsLinks lat={m.latitude} lng={m.longitude} />}
+                      </div>
                       <button className="btn sm" type="button" onClick={() => navigate('/products')}>
-                        Browse produce <ArrowRight size={14} />
+                        {t('home.browseProduce')} <ArrowRight size={14} />
                       </button>
                     </div>
                   </article>
@@ -103,6 +264,7 @@ export function MarketsPage() {
 }
 
 export function ProductsPage() {
+  const { t } = useTranslation();
   const { addItem } = useCart();
   const { isAuthenticated, role, ROLES } = useAuth();
   const [rows, setRows] = useState([]);
@@ -117,12 +279,18 @@ export function ProductsPage() {
   });
   const [categoryId, setCategoryId] = useState('');
   const [marketId, setMarketId] = useState('');
+  const [priceMin, setPriceMin] = useState('');
+  const [priceMax, setPriceMax] = useState('');
+  const [operatingDay, setOperatingDay] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [toast, setToast] = useState('');
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+  const [detail, setDetail] = useState(null);
+  const [detailReviews, setDetailReviews] = useState([]);
+  const [detailLoading, setDetailLoading] = useState(false);
   const pageSize = 24;
 
   useEffect(() => {
@@ -147,6 +315,9 @@ export function ProductsPage() {
         search: q,
         categoryId: categoryId || null,
         marketId: marketId || null,
+        priceMin: priceMin === '' ? null : priceMin,
+        priceMax: priceMax === '' ? null : priceMax,
+        operatingDay: operatingDay || null,
         limit: pageSize,
         offset,
       }),
@@ -163,13 +334,21 @@ export function ProductsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [q, categoryId, marketId]);
+  }, [q, categoryId, marketId, priceMin, priceMax, operatingDay]);
 
   useEffect(() => {
     const t = setTimeout(load, 200);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, categoryId, marketId, page]);
+  }, [q, categoryId, marketId, priceMin, priceMax, operatingDay, page]);
+
+  async function openDetail(p) {
+    setDetail(p);
+    setDetailLoading(true);
+    const { data } = await listReviewsForProduct(p.product_id);
+    setDetailReviews(data || []);
+    setDetailLoading(false);
+  }
 
   function add(p) {
     addItem({
@@ -181,28 +360,28 @@ export function ProductsPage() {
       image_url: p.image_url,
       farmer_name: productFarmerName(p),
     });
-    setToast(p.name + ' added to cart');
+    setToast(t('pages.addedCartNamed', { name: p.name }));
     setTimeout(() => setToast(''), 2000);
   }
 
   return (
     <>
-      <Header title="Fresh Products" sub="Browse vegetables, fruits and seasonal produce from local farmers." />
+      <Header title={t('pages.productsTitle')} sub={t('pages.productsLead')} />
       <div className="wrap product-toolbar">
         <div>
           <Search size={17} />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search products..." />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('pages.searchProducts')} />
         </div>
         <button className="btn ghost" type="button" onClick={() => setShowFilters((v) => !v)}>
-          <Filter size={15} /> Filters
+          <Filter size={15} /> {t('pages.filters')}
         </button>
       </div>
       {showFilters && (
         <div className="wrap form-grid" style={{ marginBottom: 16 }}>
           <label>
-            Category
+            {t('pages.category')}
             <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-              <option value="">All</option>
+              <option value="">{t('common.all')}</option>
               {categories.map((c) => (
                 <option key={c.category_id} value={c.category_id}>
                   {c.name}
@@ -211,12 +390,31 @@ export function ProductsPage() {
             </select>
           </label>
           <label>
-            Market
+            {t('pages.market')}
             <select value={marketId} onChange={(e) => setMarketId(e.target.value)}>
-              <option value="">All</option>
+              <option value="">{t('common.all')}</option>
               {markets.map((m) => (
                 <option key={m.market_id} value={m.market_id}>
                   {m.market_name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            {t('pages.priceMin')}
+            <input type="number" min="0" step="1" value={priceMin} onChange={(e) => setPriceMin(e.target.value)} placeholder="0" />
+          </label>
+          <label>
+            {t('pages.priceMax')}
+            <input type="number" min="0" step="1" value={priceMax} onChange={(e) => setPriceMax(e.target.value)} placeholder={t('pages.priceAny')} />
+          </label>
+          <label>
+            {t('pages.dayFilter')}
+            <select value={operatingDay} onChange={(e) => setOperatingDay(e.target.value)}>
+              <option value="">{t('common.anyDay')}</option>
+              {OPERATING_DAYS.map((d) => (
+                <option key={d} value={d}>
+                  {d}
                 </option>
               ))}
             </select>
@@ -231,65 +429,119 @@ export function ProductsPage() {
           </p>
         )}
         {loading ? (
-          <LoadingBlock label="Loading products…" />
+          <LoadingBlock label={t('common.loading')} />
         ) : error ? (
           <ErrorBanner message={error} onRetry={load} />
         ) : !rows.length ? (
-          <EmptyState title="No products yet" message="Available produce will show here when farmers list stock." />
+          <EmptyState title={t('pages.productsEmpty')} message={t('pages.productsEmptyHint')} />
         ) : (
           <>
             <div className="catalog-grid product-catalog">
-              {rows.map((p) => (
-                <article className="product-card" key={p.product_id}>
-                  <div className="pc-img">
-                    <Img src={p.image_url || IMG.produceFallback} alt={p.name} />
-                    <HeartBtn productId={p.product_id} />
-                    {p.product_categories?.name && <span>{p.product_categories.name}</span>}
-                  </div>
-                  <div className="pc-body">
-                    <h3>{p.name}</h3>
-                    <p>
-                      {productFarmerName(p)}
-                      {p.markets?.market_name ? ` · ${p.markets.market_name}` : ''}
-                    </p>
-                    <strong>
-                      Rs. {p.price}
-                      <small>/{p.unit}</small>
-                    </strong>
-                    <button
-                      className="btn full"
-                      type="button"
-                      onClick={() => {
-                        if (!isAuthenticated) return navigate('/login');
-                        if (role && role !== ROLES.CUSTOMER) return navigate('/cart');
-                        add(p);
-                      }}
-                    >
-                      Add to Cart <ShoppingCart size={15} />
-                    </button>
-                  </div>
-                </article>
-              ))}
+              {rows.map((p) => {
+                const outOfStock = !p.is_available || Number(p.stock_quantity) <= 0;
+                return (
+                  <article className="product-card" key={p.product_id}>
+                    <div className="pc-img" role="button" tabIndex={0} onClick={() => openDetail(p)} onKeyDown={(e) => e.key === 'Enter' && openDetail(p)}>
+                      <Img src={p.image_url || IMG.produceFallback} alt={p.name} />
+                      <HeartBtn productId={p.product_id} />
+                      {p.product_categories?.name && <span>{p.product_categories.name}</span>}
+                    </div>
+                    <div className="pc-body">
+                      <h3>
+                        <button type="button" className="linkish" onClick={() => openDetail(p)}>
+                          {p.name}
+                        </button>
+                      </h3>
+                      <p>
+                        {productFarmerName(p)}
+                        {p.markets?.market_name ? ` · ${p.markets.market_name}` : ''}
+                      </p>
+                      <strong>
+                        {t('common.rs')} {p.price}
+                        <small>/{p.unit}</small>
+                      </strong>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <NotifyRestockBtn productId={p.product_id} outOfStock={outOfStock} />
+                        <button
+                          className="btn full"
+                          type="button"
+                          disabled={outOfStock}
+                          onClick={() => {
+                            if (!isAuthenticated) return navigate('/login');
+                            if (role && role !== ROLES.CUSTOMER) return navigate('/cart');
+                            add(p);
+                          }}
+                        >
+                          {outOfStock ? t('pages.outOfStock') : (
+                            <>
+                              {t('pages.addToCart')} <ShoppingCart size={15} />
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 20 }}>
               <button type="button" className="btn ghost" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
-                Previous
+                {t('home.prev')}
               </button>
-              <span className="muted">Page {page}</span>
+              <span className="muted">{t('pages.pageLabel', { page })}</span>
               <button type="button" className="btn ghost" disabled={!hasMore} onClick={() => setPage((p) => p + 1)}>
-                Next
+                {t('home.next')}
               </button>
             </div>
           </>
         )}
       </div>
+      {detail && (
+        <div className="product-drawer-backdrop" role="presentation" onClick={() => setDetail(null)}>
+          <aside
+            className="product-drawer"
+            role="dialog"
+            aria-label={detail.name}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button type="button" className="btn ghost sm" onClick={() => setDetail(null)}>
+              {t('common.close')}
+            </button>
+            <div className="pc-img" style={{ borderRadius: 16, overflow: 'hidden', marginTop: 8 }}>
+              <Img src={detail.image_url || IMG.produceFallback} alt={detail.name} />
+            </div>
+            <h2>{detail.name}</h2>
+            <p className="muted">
+              {productFarmerName(detail)}
+              {detail.markets?.market_name ? ` · ${detail.markets.market_name}` : ''}
+            </p>
+            <strong>
+              {t('common.rs')} {detail.price}
+              <small>/{detail.unit}</small>
+            </strong>
+            {detail.description ? <p>{detail.description}</p> : null}
+            <div style={{ margin: '12px 0', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              <HeartBtn productId={detail.product_id} />
+              <NotifyRestockBtn
+                productId={detail.product_id}
+                outOfStock={!detail.is_available || Number(detail.stock_quantity) <= 0}
+              />
+            </div>
+            <h3 style={{ marginTop: 16, fontSize: 16 }}>{t('pages.reviews')}</h3>
+            {detailLoading ? <LoadingBlock label={t('common.loading')} /> : <ReviewList reviews={detailReviews} />}
+          </aside>
+        </div>
+      )}
     </>
   );
 }
 
 export function FarmersPage() {
+  const { t } = useTranslation();
   const [rows, setRows] = useState([]);
   const [tagsMap, setTagsMap] = useState({});
+  const [reviewsMap, setReviewsMap] = useState({});
+  const [openId, setOpenId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -310,17 +562,29 @@ export function FarmersPage() {
     })();
   }, []);
 
+  async function toggleReviews(farmer) {
+    const id = farmer.user_id;
+    if (openId === id) {
+      setOpenId(null);
+      return;
+    }
+    setOpenId(id);
+    if (reviewsMap[id]) return;
+    const { data } = await listReviewsForFarmer(id);
+    setReviewsMap((prev) => ({ ...prev, [id]: data || [] }));
+  }
+
   return (
     <>
-      <Header title="Meet Local Farmers" sub="Real people growing and supplying fresh food to their communities." />
+      <Header title={t('pages.farmersTitle')} sub={t('pages.farmersLead')} />
       <div className="wrap">
         <DemoModeNotice />
         {loading ? (
-          <LoadingBlock label="Loading farmers…" />
+          <LoadingBlock label={t('common.loading')} />
         ) : error ? (
           <ErrorBanner message={error} />
         ) : !rows.length ? (
-          <EmptyState title="No approved farmers yet" message="Approved farmer stalls will appear here." />
+          <EmptyState title={t('pages.farmersEmpty')} message={t('pages.farmersEmptyHint')} />
         ) : (
           <div className="catalog-grid farmer-catalog">
             {rows.map((f) => (
@@ -329,20 +593,37 @@ export function FarmersPage() {
                   <Img src={f.profiles?.avatar_url || IMG.avatar} alt={f.stall_name} />
                 </div>
                 <section>
-                  <span className="eyebrow">{f.approved ? 'Verified' : 'Farmer'}</span>
+                  <span className="eyebrow">{f.approved ? t('common.verified') : t('auth.roleFarmer')}</span>
                   <h3>{f.stall_name}</h3>
-                  <p>{f.contact_person || f.profiles?.full_name || 'Local farmer'}</p>
+                  <p>{f.contact_person || f.profiles?.full_name || t('home.localFarmer')}</p>
                   <small>
-                    <MapPin size={13} /> {f.profiles?.address || 'Local market'}
+                    <MapPin size={13} /> {f.profiles?.address || t('home.localMarket')}
+                    {(f.operating_days || []).length ? ` · ${(f.operating_days || []).join(', ')}` : ''}
                   </small>
+                  {hasCoords(f.latitude, f.longitude) && (
+                    <div style={{ margin: '8px 0' }}>
+                      <DirectionsLinks lat={f.latitude} lng={f.longitude} />
+                    </div>
+                  )}
                   <div>
-                    {(tagsMap[f.user_id] || []).map((t) => (
-                      <em key={t}>{t}</em>
+                    {(tagsMap[f.user_id] || []).map((tag) => (
+                      <em key={tag}>{tag}</em>
                     ))}
                   </div>
-                  <button className="btn sm" type="button" onClick={() => navigate('/products')}>
-                    View produce <ArrowRight size={14} />
-                  </button>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+                    <HeartBtn farmerId={f.user_id} />
+                    <button className="btn sm ghost" type="button" onClick={() => toggleReviews(f)}>
+                      {openId === f.user_id ? t('pages.hideReviews') : t('pages.reviews')}
+                    </button>
+                    <button className="btn sm" type="button" onClick={() => navigate('/products')}>
+                      {t('pages.viewProduce')} <ArrowRight size={14} />
+                    </button>
+                  </div>
+                  {openId === f.user_id && (
+                    <div className="farmer-reviews-block">
+                      <ReviewList reviews={reviewsMap[f.user_id]} emptyMessage={t('pages.noFarmerReviews')} />
+                    </div>
+                  )}
                 </section>
               </article>
             ))}
@@ -354,28 +635,44 @@ export function FarmersPage() {
 }
 
 export function AboutPage() {
+  const { t } = useTranslation();
   return (
     <>
-      <Header title="About MarketLink" sub="A digital bridge between local farmers, markets and their communities." />
+      <Header title={t('pages.aboutTitle')} sub={t('pages.aboutLead')} />
       <div className="wrap info-page">
-        <img src="https://images.unsplash.com/photo-1464226184884-fa280b87c399?auto=format&fit=crop&w=1300&q=85" alt="Farm landscape" />
+        <img src="https://images.unsplash.com/photo-1464226184884-fa280b87c399?auto=format&fit=crop&w=1300&q=85" alt={t('pages.aboutAlt')} />
         <div>
-          <span className="eyebrow">Our purpose</span>
-          <h2>Fresh food. Stronger local connections.</h2>
-          <p>
-            MarketLink brings market availability, farmer profiles, product discovery and pickup pre-orders into one friendly
-            experience. Customers can discover nearby markets, browse products, save favorites and review completed orders.
-          </p>
+          <span className="eyebrow">{t('pages.aboutPurpose')}</span>
+          <h2>{t('pages.aboutHeadline')}</h2>
+          <p>{t('pages.aboutBody')}</p>
           <button className="btn" type="button" onClick={() => navigate('/markets')}>
-            Explore Markets <ArrowRight size={15} />
+            {t('home.ctaExplore')} <ArrowRight size={15} />
           </button>
         </div>
       </div>
+      <section className="wrap about-story" id="about-story" aria-labelledby="about-story-title">
+        <span className="eyebrow">{t('pages.story.eyebrow')}</span>
+        <h2 id="about-story-title">{t('pages.story.title')}</h2>
+        <p className="muted">{t('pages.story.lead')}</p>
+        <div className="about-story-grid">
+          <article className="about-story-col before">
+            <span className="about-story-label">{t('pages.story.beforeLabel')}</span>
+            <h3>{t('pages.story.beforeTitle')}</h3>
+            <p>{t('pages.story.beforeBody')}</p>
+          </article>
+          <article className="about-story-col after">
+            <span className="about-story-label">{t('pages.story.afterLabel')}</span>
+            <h3>{t('pages.story.afterTitle')}</h3>
+            <p>{t('pages.story.afterBody')}</p>
+          </article>
+        </div>
+      </section>
     </>
   );
 }
 
 export function ContactPage() {
+  const { t } = useTranslation();
   const [form, setForm] = useState({ name: '', email: '', message: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -396,57 +693,57 @@ export function ContactPage() {
     setForm({ name: '', email: '', message: '' });
     setOk(
       mailOk === false
-        ? `Message saved. Email notice failed${mailError ? `: ${mailError}` : '.'}`
-        : 'Thanks — your message was sent.'
+        ? t('pages.contactEmailFailed', { detail: mailError ? `: ${mailError}` : '.' })
+        : t('pages.contactSuccess')
     );
   }
 
   return (
     <>
-      <Header title="Contact Us" sub="Have a question about markets, farmers or pickup? Reach out." />
+      <Header title={t('pages.contactTitle')} sub={t('pages.contactLead')} />
       <div className="wrap contact-grid">
         <form className="contact-form" onSubmit={onSubmit}>
           <ErrorBanner message={error} />
           {ok && <p className="muted" role="status">{ok}</p>}
           <label>
-            Name
+            {t('pages.nameLabel')}
             <input
               required
-              placeholder="Your name"
+              placeholder={t('pages.contactName')}
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
           </label>
           <label>
-            Email
+            {t('pages.emailLabel')}
             <input
               type="email"
               required
-              placeholder="you@example.com"
+              placeholder={t('pages.contactEmailPlaceholder')}
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
             />
           </label>
           <label>
-            Message
+            {t('pages.messageLabel')}
             <textarea
               required
-              placeholder="How can we help?"
+              placeholder={t('pages.contactMessagePlaceholder')}
               value={form.message}
               onChange={(e) => setForm({ ...form, message: e.target.value })}
             />
           </label>
           <button className="btn" type="submit" disabled={busy}>
-            {busy ? 'Sending…' : 'Send Message'} <Send size={15} />
+            {busy ? t('pages.contactSending') : t('pages.contactSend')} <Send size={15} />
           </button>
         </form>
         <div className="contact-card">
           <MapPin size={25} />
-          <h3>MarketLink Community Hub</h3>
-          <p>Lahore, Pakistan</p>
-          <small>Browse live markets on the Markets page for pickup locations.</small>
+          <h3>{t('pages.contactHub')}</h3>
+          <p>{t('pages.contactCity')}</p>
+          <small>{t('pages.contactHubHint')}</small>
           <button className="btn ghost" type="button" onClick={() => navigate('/markets')}>
-            Find Markets <MapPin size={15} />
+            {t('pages.findMarkets')} <MapPin size={15} />
           </button>
         </div>
       </div>
@@ -455,6 +752,7 @@ export function ContactPage() {
 }
 
 export function NotificationsPage() {
+  const { t } = useTranslation();
   const { user, isAuthenticated, isConfigured } = useAuth();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -493,20 +791,20 @@ export function NotificationsPage() {
 
   return (
     <>
-      <Header title="Notifications" sub="Order updates and account alerts." />
+      <Header title={t('pages.notificationsTitle')} sub={t('pages.notificationsLead')} />
       <div className="wrap">
         <DemoModeNotice />
         {!isConfigured ? null : loading ? (
-          <LoadingBlock label="Loading notifications…" />
+          <LoadingBlock label={t('common.loading')} />
         ) : error ? (
           <ErrorBanner message={error} onRetry={load} />
         ) : !rows.length ? (
-          <EmptyState title="No notifications" message="You will see order and account alerts here." />
+          <EmptyState title={t('pages.notificationsEmpty')} message={t('pages.notificationsEmptyHint')} />
         ) : (
           <>
             {rows.some((n) => !n.read_at) && (
               <button className="btn sm" type="button" onClick={onReadAll} style={{ marginBottom: 12 }}>
-                Mark all read
+                {t('pages.markAllRead')}
               </button>
             )}
             <div className="notif-list">
@@ -519,12 +817,12 @@ export function NotificationsPage() {
                     <div className="notif-actions">
                       {n.link && (
                         <button type="button" className="btn sm ghost" onClick={() => navigate(n.link)}>
-                          Open
+                          {t('pages.open')}
                         </button>
                       )}
                       {!n.read_at && (
                         <button type="button" className="btn sm" onClick={() => onRead(n.id)}>
-                          Mark read
+                          {t('pages.markRead')}
                         </button>
                       )}
                     </div>
@@ -540,11 +838,13 @@ export function NotificationsPage() {
 }
 
 export function CartPage() {
+  const { t } = useTranslation();
   const { items, removeItem, updateQty, total, clear } = useCart();
   const { user, profile, isAuthenticated, role, ROLES, isConfigured } = useAuth();
   const [pickupDate, setPickupDate] = useState('');
   const [pickupSlot, setPickupSlot] = useState('');
   const [slots, setSlots] = useState([]);
+  const [cutoffMinutes, setCutoffMinutes] = useState(120);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [ok, setOk] = useState('');
@@ -554,15 +854,20 @@ export function CartPage() {
       const farmerIds = [...new Set(items.map((i) => i.farmer_id).filter(Boolean))];
       if (!farmerIds.length) {
         setSlots([]);
+        setCutoffMinutes(120);
         return;
       }
       const windows = [];
+      let maxCutoff = 120;
       for (const id of farmerIds) {
         const { data } = await getMyFarmerProfile(id);
         const pw = Array.isArray(data?.pickup_windows) ? data.pickup_windows : [];
         pw.forEach((w) => windows.push(w.label || `${w.day} ${w.start}–${w.end}`));
+        const mins = data?.order_cutoff_minutes != null ? Number(data.order_cutoff_minutes) : 120;
+        if (Number.isFinite(mins) && mins > maxCutoff) maxCutoff = mins;
       }
       setSlots([...new Set(windows)]);
+      setCutoffMinutes(maxCutoff);
     })();
   }, [items]);
 
@@ -570,7 +875,7 @@ export function CartPage() {
     setError(null);
     setOk('');
     if (!isConfigured) {
-      setError('Checkout needs live Supabase.');
+      setError(t('pages.checkoutNeedsLive'));
       return;
     }
     if (!isAuthenticated || role !== ROLES.CUSTOMER) {
@@ -578,11 +883,11 @@ export function CartPage() {
       return;
     }
     if (!items.length) {
-      setError('Your basket is empty.');
+      setError(t('pages.basketEmptyError'));
       return;
     }
     if (!pickupDate || !pickupSlot) {
-      setError('Choose a pickup date and slot.');
+      setError(t('pages.choosePickup'));
       return;
     }
     setBusy(true);
@@ -623,25 +928,25 @@ export function CartPage() {
         }
       }
       clear();
-      setOk('Orders placed. A confirmation email will arrive if EmailJS is configured. Track them under My Orders.');
+      setOk(t('pages.ordersPlacedOk'));
       navigate('/orders');
     }
   }
 
   return (
     <>
-      <Header title="Your Basket" sub="Review your selected produce before choosing a pickup slot." />
+      <Header title={t('pages.cartTitle')} sub={t('pages.cartLead')} />
       <div className="wrap cart-page">
         <DemoModeNotice />
         <ErrorBanner message={error} />
         {ok && <p className="muted">{ok}</p>}
         {!items.length ? (
           <EmptyState
-            title="Basket is empty"
-            message="Browse products and add items to pre-order for pickup."
+            title={t('pages.cartEmpty')}
+            message={t('pages.cartEmptyHint')}
             action={
               <button className="btn sm" type="button" onClick={() => navigate('/products')} style={{ marginTop: 8 }}>
-                Browse products
+                {t('pages.browseProducts')}
               </button>
             }
           />
@@ -657,7 +962,7 @@ export function CartPage() {
                       {i.quantity} {i.unit} · {i.farmer_name}
                     </small>
                     <label>
-                      Qty
+                      {t('common.qty')}
                       <input
                         type="number"
                         min="1"
@@ -669,8 +974,8 @@ export function CartPage() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <strong>Rs. {(i.price * i.quantity).toFixed(0)}</strong>
-                  <button type="button" className="btn ghost sm" onClick={() => removeItem(i.product_id)} aria-label="Remove">
+                  <strong>{t('common.rs')} {(i.price * i.quantity).toFixed(0)}</strong>
+                  <button type="button" className="btn ghost sm" onClick={() => removeItem(i.product_id)} aria-label={t('pages.removeAria')}>
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -678,29 +983,38 @@ export function CartPage() {
             ))}
             <div className="form-grid" style={{ marginTop: 16 }}>
               <label>
-                Pickup date
+                {t('pages.pickupDate')}
                 <input type="date" required value={pickupDate} onChange={(e) => setPickupDate(e.target.value)} />
               </label>
               <label>
-                Pickup slot
+                {t('pages.pickupSlot')}
                 <select required value={pickupSlot} onChange={(e) => setPickupSlot(e.target.value)}>
-                  <option value="">Select slot</option>
-                  {(slots.length ? slots : ['Morning 8–11 AM', 'Afternoon 2–5 PM']).map((s) => (
-                    <option key={s} value={s}>
-                      {s}
+                  <option value="">{t('pages.selectSlot')}</option>
+                  {(slots.length
+                    ? slots.map((slot) => ({ value: slot, label: slot }))
+                    : [
+                        { value: 'Morning 8–11 AM', label: t('pages.slotMorning') },
+                        { value: 'Afternoon 2–5 PM', label: t('pages.slotAfternoon') },
+                      ]
+                  ).map((slot) => (
+                    <option key={slot.value} value={slot.value}>
+                      {slot.label}
                     </option>
                   ))}
                 </select>
               </label>
             </div>
+            <p className="muted" style={{ marginTop: 8 }}>
+              {t('pages.cutoffHint', { minutes: cutoffMinutes })}
+            </p>
             <div className="cart-total">
-              <span>Total at pickup</span>
-              <b>Rs. {total.toFixed(0)}</b>
+              <span>{t('pages.totalPickup')}</span>
+              <b>{t('common.rs')} {total.toFixed(0)}</b>
               <button className="btn" type="button" disabled={busy} onClick={checkout}>
-                {busy ? 'Placing…' : 'Place pre-order'}
+                {busy ? t('pages.placing') : t('pages.placeOrder')}
               </button>
               <button className="btn ghost" type="button" onClick={() => navigate('/products')}>
-                Continue Shopping <ArrowRight size={15} />
+                {t('pages.continueShopping')} <ArrowRight size={15} />
               </button>
             </div>
           </>
@@ -711,17 +1025,27 @@ export function CartPage() {
 }
 
 export function OrdersPage() {
+  const { t } = useTranslation();
   const { user, isAuthenticated, role, ROLES, isConfigured } = useAuth();
+  const { preloadItems } = useCart();
+  const { mode, setMode } = useDataViewMode('customer-orders');
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [reviewDraft, setReviewDraft] = useState({});
+  const [qtyDraft, setQtyDraft] = useState({});
+  const [busyId, setBusyId] = useState(null);
 
   async function load() {
     if (!user?.id) return;
     setLoading(true);
     const { data, error: err } = await listOrdersForCustomer(user.id);
     setRows(data || []);
+    const nextQty = {};
+    (data || []).forEach((o) => {
+      nextQty[o.order_id] = o.quantity;
+    });
+    setQtyDraft(nextQty);
     setError(err);
     setLoading(false);
   }
@@ -732,17 +1056,65 @@ export function OrdersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, isAuthenticated]);
 
+  function onOrderAgain(order) {
+    const p = order.products;
+    preloadItems([
+      {
+        product_id: order.product_id,
+        farmer_id: order.farmer_id,
+        name: p?.name || 'Product',
+        price: p?.price ?? order.total_amount / Math.max(1, order.quantity),
+        unit: p?.unit || 'kg',
+        image_url: p?.image_url || null,
+        farmer_name: 'Local farmer',
+        quantity: order.quantity,
+      },
+    ]);
+    navigate('/cart');
+  }
+
+  async function onSaveQty(order) {
+    setError(null);
+    if (!canCustomerEditOrder(order)) {
+      setError(t('pages.orderEditClosed'));
+      return;
+    }
+    const qty = Number(qtyDraft[order.order_id]);
+    if (!Number.isFinite(qty) || qty < 1) {
+      setError(t('pages.qtyMinError'));
+      return;
+    }
+    setBusyId(order.order_id);
+    const { error: err } = await modifyOrderItems(order.order_id, qty);
+    setBusyId(null);
+    if (err) setError(err);
+    else load();
+  }
+
+  async function onCancel(order) {
+    setError(null);
+    if (!canCustomerEditOrder(order)) {
+      setError(t('pages.orderEditClosed'));
+      return;
+    }
+    setBusyId(order.order_id);
+    const { error: err } = await cancelOrder(order.order_id);
+    setBusyId(null);
+    if (err) setError(err);
+    else load();
+  }
+
   if (!isAuthenticated) {
     return (
       <>
-        <Header title="My Orders" sub="Sign in as a customer to view order history." />
+        <Header title={t('pages.ordersTitle')} sub={t('pages.ordersLoginLead')} />
         <div className="wrap">
           <EmptyState
-            title="Login required"
-            message="Customers track pickup orders here."
+            title={t('pages.loginRequired')}
+            message={t('pages.ordersLoginMsg')}
             action={
               <button className="btn sm" type="button" onClick={() => navigate('/login')} style={{ marginTop: 8 }}>
-                Login
+                {t('nav.login')}
               </button>
             }
           />
@@ -754,9 +1126,9 @@ export function OrdersPage() {
   if (role && role !== ROLES.CUSTOMER) {
     return (
       <>
-        <Header title="My Orders" sub="Order history is for customer accounts." />
+        <Header title={t('pages.ordersTitle')} sub={t('pages.ordersWrongRoleLead')} />
         <div className="wrap">
-          <EmptyState title="Wrong role" message="Use your dashboard for farmer/admin order tools." />
+          <EmptyState title={t('pages.wrongRole')} message={t('pages.wrongRoleMsg')} />
         </div>
       </>
     );
@@ -764,98 +1136,141 @@ export function OrdersPage() {
 
   return (
     <>
-      <Header title="My Orders" sub="Track pickup status and leave reviews after completion." />
+      <Header title={t('pages.ordersTitle')} sub={t('pages.ordersLead')} />
       <div className="wrap">
         <DemoModeNotice />
+        <ErrorBanner message={error} />
         {!isConfigured ? null : loading ? (
-          <LoadingBlock label="Loading orders…" />
-        ) : error ? (
-          <ErrorBanner message={error} onRetry={load} />
+          <LoadingBlock label={t('common.loading')} />
         ) : !rows.length ? (
-          <EmptyState title="No orders yet" message="Place a pre-order from your basket to see it here." />
+          <EmptyState title={t('pages.ordersEmpty')} message={t('pages.ordersEmptyHint')} />
         ) : (
-          <div className="mini-table">
-            {rows.map((o) => (
-              <div className="tr" key={o.order_id}>
-                <span>
-                  <b>
-                    #{o.order_id} — {o.products?.name || 'Product'}
-                  </b>
-                  <small>
-                    Qty {o.quantity} · Rs. {o.total_amount}
-                    {o.pickup_date ? ` · ${o.pickup_date}` : ''} {o.pickup_slot || ''}
-                  </small>
-                  {o.order_status === 'completed' && (
-                    <div style={{ marginTop: 8 }}>
-                      <label>
-                        Rate 1–5
+          <>
+            <div className="panel-title" style={{ marginBottom: 12 }}>
+              <div>
+                <span className="eyebrow">{t('pages.brand')}</span>
+                <h3>{t('pages.ordersTitle')}</h3>
+              </div>
+              <DataViewToolbar mode={mode} onChange={setMode} />
+            </div>
+            <DataView mode={mode}>
+              {rows.map((o) => {
+                const editable = canCustomerEditOrder(o);
+                const cutoffAt = getOrderEditCutoffAt(o, getOrderCutoffMinutes(o));
+                const cutoffLabel = cutoffAt
+                  ? cutoffAt.toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })
+                  : null;
+                return (
+                  <DataCard
+                    key={o.order_id}
+                    title={`#${o.order_id} — ${o.products?.name || t('pages.productFallback')}`}
+                    subtitle={[
+                      t('pages.orderLineMeta', { qty: o.quantity, rs: t('common.rs'), amount: o.total_amount }),
+                      o.pickup_date || null,
+                      o.pickup_slot || null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                    status={statusLabel(t, o.order_status)}
+                    statusClass="s1"
+                    actions={
+                      editable ? (
+                        <button type="button" disabled={busyId === o.order_id} onClick={() => onCancel(o)}>
+                          {t('pages.cancelOrder')}
+                        </button>
+                      ) : null
+                    }
+                  >
+                    {o.order_status === 'placed' && cutoffLabel && (
+                      <small className="muted" style={{ display: 'block' }}>
+                        {editable
+                          ? t('pages.editableUntil', { when: cutoffLabel })
+                          : t('pages.changesClosedAfter', { when: cutoffLabel })}
+                      </small>
+                    )}
+                    {editable && (
+                      <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                        <label>
+                          {t('common.qty')}
+                          <input
+                            type="number"
+                            min="1"
+                            value={qtyDraft[o.order_id] ?? o.quantity}
+                            onChange={(e) => setQtyDraft({ ...qtyDraft, [o.order_id]: e.target.value })}
+                            style={{ width: 64, marginLeft: 8 }}
+                            disabled={busyId === o.order_id}
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          className="btn sm"
+                          disabled={busyId === o.order_id}
+                          onClick={() => onSaveQty(o)}
+                        >
+                          {busyId === o.order_id ? t('common.saving') : t('pages.updateQty')}
+                        </button>
+                      </div>
+                    )}
+                    {o.order_status === 'completed' && (
+                      <div style={{ marginTop: 8 }}>
+                        <button type="button" className="btn sm" style={{ marginBottom: 8 }} onClick={() => onOrderAgain(o)}>
+                          {t('pages.orderAgain')}
+                        </button>
+                        <label>
+                          {t('pages.rateLabel')}
+                          <input
+                            type="number"
+                            min="1"
+                            max="5"
+                            value={reviewDraft[o.order_id]?.rating || ''}
+                            onChange={(e) =>
+                              setReviewDraft({
+                                ...reviewDraft,
+                                [o.order_id]: { ...reviewDraft[o.order_id], rating: e.target.value },
+                              })
+                            }
+                          />
+                        </label>
                         <input
-                          type="number"
-                          min="1"
-                          max="5"
-                          value={reviewDraft[o.order_id]?.rating || ''}
+                          placeholder={t('pages.commentPlaceholder')}
+                          value={reviewDraft[o.order_id]?.comment || ''}
                           onChange={(e) =>
                             setReviewDraft({
                               ...reviewDraft,
-                              [o.order_id]: { ...reviewDraft[o.order_id], rating: e.target.value },
+                              [o.order_id]: { ...reviewDraft[o.order_id], comment: e.target.value },
                             })
                           }
                         />
-                      </label>
-                      <input
-                        placeholder="Comment"
-                        value={reviewDraft[o.order_id]?.comment || ''}
-                        onChange={(e) =>
-                          setReviewDraft({
-                            ...reviewDraft,
-                            [o.order_id]: { ...reviewDraft[o.order_id], comment: e.target.value },
-                          })
-                        }
-                      />
-                      <button
-                        type="button"
-                        className="btn sm"
-                        onClick={async () => {
-                          const d = reviewDraft[o.order_id] || {};
-                          const rating = Number(d.rating);
-                          if (!rating || rating < 1 || rating > 5) {
-                            setError('Rating must be 1–5.');
-                            return;
-                          }
-                          const { error: err } = await createReview({
-                            productId: o.product_id,
-                            customerId: user.id,
-                            farmerId: o.farmer_id,
-                            rating,
-                            comment: d.comment || '',
-                          });
-                          if (err) setError(err);
-                          else setError(null);
-                        }}
-                      >
-                        Submit review
-                      </button>
-                    </div>
-                  )}
-                </span>
-                <span className="status s1">{o.order_status}</span>
-                <span>
-                  {o.order_status === 'placed' && (
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        const { error: err } = await cancelOrder(o.order_id);
-                        if (err) setError(err);
-                        else load();
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  )}
-                </span>
-              </div>
-            ))}
-          </div>
+                        <button
+                          type="button"
+                          className="btn sm"
+                          onClick={async () => {
+                            const d = reviewDraft[o.order_id] || {};
+                            const rating = Number(d.rating);
+                            if (!rating || rating < 1 || rating > 5) {
+                              setError(t('pages.ratingError'));
+                              return;
+                            }
+                            const { error: err } = await createReview({
+                              productId: o.product_id,
+                              customerId: user.id,
+                              farmerId: o.farmer_id,
+                              rating,
+                              comment: d.comment || '',
+                            });
+                            if (err) setError(err);
+                            else setError(null);
+                          }}
+                        >
+                          {t('pages.submitReview')}
+                        </button>
+                      </div>
+                    )}
+                  </DataCard>
+                );
+              })}
+            </DataView>
+          </>
         )}
       </div>
     </>
@@ -863,17 +1278,20 @@ export function OrdersPage() {
 }
 
 export function FavoritesPage() {
+  const { t } = useTranslation();
   const { user, isAuthenticated, isConfigured } = useAuth();
   const [rows, setRows] = useState([]);
+  const [markets, setMarkets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   async function load() {
     if (!user?.id) return;
     setLoading(true);
-    const { data, error: err } = await listFavorites(user.id);
-    setRows(data || []);
-    setError(err);
+    const [fav, pref] = await Promise.all([listFavorites(user.id), listPreferredMarkets(user.id)]);
+    setRows(fav.data || []);
+    setMarkets(pref.data || []);
+    setError(fav.error || pref.error);
     setLoading(false);
   }
 
@@ -885,14 +1303,14 @@ export function FavoritesPage() {
   if (!isAuthenticated) {
     return (
       <>
-        <Header title="Favorites" sub="Save products you love." />
+        <Header title={t('pages.favoritesTitle')} sub={t('pages.favoritesLead')} />
         <div className="wrap">
           <EmptyState
-            title="Login required"
-            message="Sign in to manage favorites."
+            title={t('pages.loginRequired')}
+            message={t('pages.favoritesLoginMsg')}
             action={
               <button className="btn sm" type="button" onClick={() => navigate('/login')} style={{ marginTop: 8 }}>
-                Login
+                {t('nav.login')}
               </button>
             }
           />
@@ -901,62 +1319,120 @@ export function FavoritesPage() {
     );
   }
 
+  const productFavs = rows.filter((f) => f.product_id && f.products);
+  const farmerFavs = rows.filter((f) => f.farmer_id && !f.product_id);
+  const emptyAll = !productFavs.length && !farmerFavs.length && !markets.length;
+
   return (
     <>
-      <Header title="Favorites" sub="Your saved products and farmers." />
+      <Header title={t('pages.favoritesTitle')} sub={t('pages.favoritesLeadFull')} />
       <div className="wrap">
         <DemoModeNotice />
         {!isConfigured ? null : loading ? (
           <LoadingBlock />
         ) : error ? (
           <ErrorBanner message={error} onRetry={load} />
-        ) : !rows.length ? (
-          <EmptyState title="No favorites yet" message="Tap the heart on a product to save it here." />
+        ) : emptyAll ? (
+          <EmptyState title={t('pages.favoritesEmpty')} message={t('pages.favoritesEmptyHint')} />
         ) : (
-          <div className="catalog-grid product-catalog">
-            {rows.map((f) => {
-              if (f.product_id && f.products) {
-                const p = f.products;
-                return (
-                  <article className="product-card" key={f.favorite_id}>
-                    <div className="pc-img">
-                      <Img src={p.image_url || IMG.produceFallback} alt={p.name} />
-                      <Heart size={17} />
-                    </div>
-                    <div className="pc-body">
-                      <h3>{p.name}</h3>
-                      <strong>
-                        Rs. {p.price}
-                        <small>/{p.unit}</small>
-                      </strong>
-                      <button
-                        className="btn ghost full"
-                        type="button"
-                        onClick={async () => {
-                          await toggleProductFavorite(user.id, p.product_id);
-                          load();
-                        }}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </article>
-                );
-              }
-              const stall =
-                (Array.isArray(f.profiles?.farmer_profiles)
-                  ? f.profiles.farmer_profiles[0]?.stall_name
-                  : f.profiles?.farmer_profiles?.stall_name) || f.profiles?.full_name || 'Farmer';
-              return (
-                <article className="catalog-card" key={f.favorite_id}>
-                  <div className="catalog-body">
-                    <h3>{stall}</h3>
-                    <p>Saved farmer</p>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
+          <>
+            {markets.length > 0 && (
+              <section style={{ marginBottom: 36 }}>
+                <h2 style={{ fontSize: 22, marginBottom: 12 }}>{t('pages.preferredMarkets')}</h2>
+                <div className="catalog-grid">
+                  {markets.map((row) => {
+                    const m = row.markets;
+                    if (!m) return null;
+                    return (
+                      <article className="catalog-card" key={row.id}>
+                        <div className="catalog-img">
+                          <Img src={IMG.marketFallback} alt={m.market_name} />
+                        </div>
+                        <div className="catalog-body">
+                          <h3>{m.market_name}</h3>
+                          <p>
+                            <MapPin size={14} /> {m.address || t('home.addressTbd')}
+                          </p>
+                          <small>{(m.operating_days || []).join(', ') || t('home.scheduleTbd')}</small>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                            <PreferMarketBtn marketId={m.market_id} onToggled={() => load()} />
+                            {hasCoords(m.latitude, m.longitude) && (
+                              <DirectionsLinks lat={m.latitude} lng={m.longitude} />
+                            )}
+                            <button className="btn sm" type="button" onClick={() => navigate('/products')}>
+                              {t('pages.browse')} <ArrowRight size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+            {productFavs.length > 0 && (
+              <section style={{ marginBottom: 36 }}>
+                <h2 style={{ fontSize: 22, marginBottom: 12 }}>{t('pages.savedProducts')}</h2>
+                <div className="catalog-grid product-catalog">
+                  {productFavs.map((f) => {
+                    const p = f.products;
+                    const outOfStock = !p.is_available || Number(p.stock_quantity) <= 0;
+                    return (
+                      <article className="product-card" key={f.favorite_id}>
+                        <div className="pc-img">
+                          <Img src={p.image_url || IMG.produceFallback} alt={p.name} />
+                          <Heart size={17} />
+                        </div>
+                        <div className="pc-body">
+                          <h3>{p.name}</h3>
+                          <strong>
+                            {t('common.rs')} {p.price}
+                            <small>/{p.unit}</small>
+                          </strong>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            <NotifyRestockBtn productId={p.product_id} outOfStock={outOfStock} />
+                            <button
+                              className="btn ghost full"
+                              type="button"
+                              onClick={async () => {
+                                await toggleProductFavorite(user.id, p.product_id);
+                                load();
+                              }}
+                            >
+                              {t('pages.remove')}
+                            </button>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+            {farmerFavs.length > 0 && (
+              <section>
+                <h2 style={{ fontSize: 22, marginBottom: 12 }}>{t('pages.savedFarmers')}</h2>
+                <div className="catalog-grid">
+                  {farmerFavs.map((f) => {
+                    const stall =
+                      (Array.isArray(f.profiles?.farmer_profiles)
+                        ? f.profiles.farmer_profiles[0]?.stall_name
+                        : f.profiles?.farmer_profiles?.stall_name) ||
+                      f.profiles?.full_name ||
+                      t('auth.roleFarmer');
+                    return (
+                      <article className="catalog-card" key={f.favorite_id}>
+                        <div className="catalog-body">
+                          <h3>{stall}</h3>
+                          <p>{t('pages.savedFarmerLabel')}</p>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+          </>
         )}
       </div>
     </>

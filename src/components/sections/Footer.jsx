@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Sun, Moon, Send } from "lucide-react";
 import Logo from "../../components/Logo";
 import { navigate } from "../../router";
@@ -6,8 +7,29 @@ import { flashToast } from "../../lib/flashToast";
 import { subscribeNewsletter } from "../../lib/api/contact";
 
 export default function Footer({ dark, setTheme }) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const quickLinks = [
+    { label: t("nav.home"), path: "/" },
+    { label: t("nav.markets"), path: "/markets" },
+    { label: t("nav.farmers"), path: "/farmers" },
+    { label: t("home.howTitle"), path: "/#how-it-works" },
+    { label: t("nav.about"), path: "/about" },
+  ];
+  const supportLinks = [
+    { label: t("footer.help"), path: "/contact" },
+    { label: t("footer.contact"), path: "/contact" },
+    { label: t("footer.faqs"), path: "/contact" },
+    { label: t("footer.trackOrder"), path: "/orders" },
+  ];
+  const farmerLinks = [
+    { label: t("footer.registerFarmer"), path: "/register" },
+    { label: t("footer.sellerGuidelines"), path: "/about" },
+    { label: t("footer.resources"), path: "/about" },
+    { label: t("footer.support"), path: "/contact" },
+  ];
 
   async function onSubscribe(e) {
     if (e) e.preventDefault();
@@ -20,7 +42,7 @@ export default function Footer({ dark, setTheme }) {
       return;
     }
     setEmail("");
-    flashToast("Subscribed — thanks for staying in touch!");
+    flashToast(t("footer.newsletterToast"));
   }
 
   return (
@@ -28,37 +50,52 @@ export default function Footer({ dark, setTheme }) {
         <div className="wrap foot-in">
           <div className="fcol brand">
             <Logo />
-            <p className="fdesc">Connecting local farmers with their community — one fresh basket at a time.</p>
+            <p className="fdesc">{t("footer.desc")}</p>
           </div>
-          <div className="fcol"><b>Quick Links</b>{["Home", "Markets", "Farmers", "How It Works", "About Us"].map((l) => <a key={l} onClick={() => navigate(({"Home":"/","Markets":"/markets","Farmers":"/farmers","How It Works":"/#how-it-works","About Us":"/about"}[l] || "/"))}>{l}</a>)}</div>
-          <div className="fcol"><b>Customer Support</b>{["Help Center", "Contact Us", "FAQs", "Track Order"].map((l) => <a key={l} onClick={() => navigate(({"Help Center":"/contact","Contact Us":"/contact","FAQs":"/contact","Track Order":"/orders"}[l] || "/contact"))}>{l}</a>)}</div>
-          <div className="fcol"><b>For Farmers</b>{["Farmer Registration", "Seller Guidelines", "Resources", "Support"].map((l) => <a key={l} onClick={() => navigate(({"Farmer Registration":"/register","Seller Guidelines":"/about","Resources":"/about","Support":"/contact"}[l] || "/register"))}>{l}</a>)}</div>
+          <div className="fcol">
+            <b>{t("footer.quickLinks")}</b>
+            {quickLinks.map((l) => (
+              <a key={l.path + l.label} onClick={() => navigate(l.path)}>{l.label}</a>
+            ))}
+          </div>
+          <div className="fcol">
+            <b>{t("footer.support")}</b>
+            {supportLinks.map((l) => (
+              <a key={l.path + l.label} onClick={() => navigate(l.path)}>{l.label}</a>
+            ))}
+          </div>
+          <div className="fcol">
+            <b>{t("footer.forFarmers")}</b>
+            {farmerLinks.map((l) => (
+              <a key={l.path + l.label} onClick={() => navigate(l.path)}>{l.label}</a>
+            ))}
+          </div>
           <div className="fcol news">
-            <b>Stay Updated</b>
-            <small>Get the latest updates, offers and fresh produce news.</small>
+            <b>{t("footer.newsletter")}</b>
+            <small>{t("footer.newsletterHint")}</small>
             <form className="nl" onSubmit={onSubscribe}>
               <input
                 type="email"
                 required
-                placeholder="Your email address"
+                placeholder={t("footer.newsletterPlaceholder")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                aria-label="Newsletter email"
+                aria-label={t("footer.newsletterAria")}
               />
-              <button type="submit" aria-label="Subscribe" disabled={busy}>
+              <button type="submit" aria-label={t("footer.subscribeAria")} disabled={busy}>
                 <Send size={15} />
               </button>
             </form>
             <div className="seg">
-              <button type="button" className={!dark ? "on" : ""} onClick={() => setTheme(false)}><Sun size={14} /> Light</button>
-              <button type="button" className={dark ? "on" : ""} onClick={() => setTheme(true)}><Moon size={14} /> Dark</button>
+              <button type="button" className={!dark ? "on" : ""} onClick={() => setTheme(false)}><Sun size={14} /> {t("footer.themeLight")}</button>
+              <button type="button" className={dark ? "on" : ""} onClick={() => setTheme(true)}><Moon size={14} /> {t("footer.themeDark")}</button>
             </div>
-            <span className="script choose">Choose your vibe ♡</span>
+            <span className="script choose">{t("footer.vibe")}</span>
           </div>
         </div>
         <div className="wrap foot-bot">
-          <span>© 2026 MarketLink. All rights reserved.</span>
-          <span className="fb-links"><a onClick={() => navigate("/about")}>Privacy Policy</a> | <a onClick={() => navigate("/about")}>Terms & Conditions</a></span>
+          <span>{t("footer.copyright", { year: new Date().getFullYear() })}</span>
+          <span className="fb-links"><a onClick={() => navigate("/about")}>{t("footer.privacy")}</a> | <a onClick={() => navigate("/about")}>{t("footer.terms")}</a></span>
         </div>
       </footer>
   );

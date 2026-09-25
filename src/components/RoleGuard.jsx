@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { navigate } from '../router';
 import { hasDashboard } from '../lib/supabase';
@@ -8,6 +9,7 @@ import { hasDashboard } from '../lib/supabase';
  * Customers are sent to the public site — they shop there, not via a dashboard.
  */
 export default function RoleGuard({ role, children }) {
+  const { t } = useTranslation();
   const { loading, isAuthenticated, canAccessDashboard, dashboardPath } = useAuth();
   const allowed = isAuthenticated && hasDashboard(role) && canAccessDashboard(role);
 
@@ -29,7 +31,7 @@ export default function RoleGuard({ role, children }) {
   if (loading) {
     return (
       <div className="ml auth-page" style={{ placeItems: 'center', display: 'grid', minHeight: '100vh' }}>
-        <p className="muted">Checking your MarketLink session…</p>
+        <p className="muted">{t('auth.checkingSession')}</p>
       </div>
     );
   }
@@ -37,7 +39,7 @@ export default function RoleGuard({ role, children }) {
   if (!allowed) {
     return (
       <div className="ml auth-page" style={{ placeItems: 'center', display: 'grid', minHeight: '100vh' }}>
-        <p className="muted">Redirecting…</p>
+        <p className="muted">{t('auth.redirecting')}</p>
       </div>
     );
   }

@@ -5,8 +5,8 @@ const PRODUCT_SELECT = `
   product_id, farmer_id, market_id, category_id, name, description,
   price, unit, stock_quantity, image_url, is_available, created_at, updated_at,
   product_categories ( category_id, name ),
-  markets ( market_id, market_name ),
-  profiles!farmer_id ( id, full_name, farmer_profiles ( stall_name, approved ) )
+  markets ( market_id, market_name, operating_days ),
+  profiles!farmer_id ( id, full_name, farmer_profiles ( stall_name, approved, operating_days ) )
 `;
 
 function notConfigured() {
@@ -30,6 +30,9 @@ export async function listProducts({
   categoryId = null,
   marketId = null,
   search = '',
+  priceMin = null,
+  priceMax = null,
+  operatingDay = null,
   limit = 100,
   offset = 0,
   approvedFarmersOnly,
@@ -42,6 +45,31 @@ export async function listProducts({
   if (categoryId) q = q.eq('category_id', categoryId);
   if (marketId) q = q.eq('market_id', marketId);
   if (search?.trim()) q = q.ilike('name', `%${search.trim()}%`);
+  if (priceMin != null && priceMin !== '' && !Number.isNaN(Number(priceMin))) {
+    q = q.gte('price', Number(priceMin));
+  }
+  if (priceMax != null && priceMax !== '' && !Number.isNaN(Number(priceMax))) {
+    q = q.lte('price', Number(priceMax));
+  }
+
+  const day = operatingDay?.trim?.() || (typeof operatingDay === 'string' ? operatingDay.trim() : '');
+  if (day) {
+    const [mkRes, fpRes] = await Promise.all([
+      supabase.from('markets').select('market_id').contains('operating_days', [day]),
+      supabase.from('farmer_profiles').select('user_id').eq('approved', true).contains('operating_days', [day]),
+    ]);
+    if (mkRes.error) return { data: [], error: apiError(mkRes.error) };
+    if (fpRes.error) return { data: [], error: apiError(fpRes.error) };
+    const marketIds = (mkRes.data || []).map((m) => m.market_id);
+    const farmerIds = (fpRes.data || []).map((f) => f.user_id);
+    if (!marketIds.length && !farmerIds.length) {
+      return { data: [], error: null };
+    }
+    const parts = [];
+    if (marketIds.length) parts.push(`market_id.in.(${marketIds.join(',')})`);
+    if (farmerIds.length) parts.push(`farmer_id.in.(${farmerIds.map((id) => `"${id}"`).join(',')})`);
+    q = q.or(parts.join(','));
+  }
 
   const { data, error } = await q;
   if (error) return { data: [], error: apiError(error) };
@@ -89,10 +117,38 @@ export async function updateProduct(productId, patch) {
   return { data, error: error ? apiError(error) : null };
 }
 
+/**
+ * Hard-delete when no orders reference the product.
+ * If orders exist (FK restrict), hides the product instead so order history stays intact.
+ * Returns { error, data: { hiddenDueToOrders?: boolean } }.
+ */
 export async function deleteProduct(productId) {
-  if (!isSupabaseConfigured || !supabase) return { error: DEMO_CRUD_MSG };
+  if (!isSupabaseConfigured || !supabase) return { data: null, error: DEMO_CRUD_MSG };
+
+  const { count, error: countErr } = await supabase
+    .from('orders')
+    .select('order_id', { count: 'exact', head: true })
+    .eq('product_id', productId);
+
+  if (countErr) return { data: null, error: apiError(countErr) };
+
+  if ((count || 0) > 0) {
+    const { error: hideErr } = await setProductAvailable(productId, false);
+    if (hideErr) return { data: null, error: hideErr };
+    return { data: { hiddenDueToOrders: true }, error: null };
+  }
+
   const { error } = await supabase.from('products').delete().eq('product_id', productId);
-  return { error: error ? apiError(error) : null };
+  if (error) {
+    const msg = apiError(error) || '';
+    if (/orders_product_id_fkey|foreign key/i.test(msg)) {
+      const { error: hideErr } = await setProductAvailable(productId, false);
+      if (hideErr) return { data: null, error: hideErr };
+      return { data: { hiddenDueToOrders: true }, error: null };
+    }
+    return { data: null, error: msg };
+  }
+  return { data: { deleted: true }, error: null };
 }
 
 export async function setProductAvailable(productId, isAvailable) {

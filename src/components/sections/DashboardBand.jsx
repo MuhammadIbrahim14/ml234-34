@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { navigate } from '../../router';
 import { Sprout, ArrowRight, LayoutDashboard, Store, Users, MapPin, Leaf } from 'lucide-react';
 import { IMG } from '../../data/data';
@@ -7,11 +8,12 @@ import Img from '../../components/Img';
 import CountUp from '../../components/CountUp';
 
 export default function DashboardBand() {
+  const { t } = useTranslation();
   const [stats, setStats] = useState([
-    { icon: Store, n: 0, s: '', l: 'Happy Farmers' },
-    { icon: Users, n: 0, s: '', l: 'Active Buyers' },
-    { icon: MapPin, n: 0, s: '', l: 'Markets' },
-    { icon: Leaf, n: 100, s: '%', l: 'Fresh & Natural' },
+    { icon: Store, n: 0, s: '', lKey: 'home.bandFarmers' },
+    { icon: Users, n: 0, s: '', lKey: 'home.bandBuyers' },
+    { icon: MapPin, n: 0, s: '', lKey: 'home.bandMarkets' },
+    { icon: Leaf, n: 100, s: '%', lKey: 'home.bandFresh' },
   ]);
   const [preview, setPreview] = useState({ orders: 0, pending: 0, products: 0 });
 
@@ -20,10 +22,10 @@ export default function DashboardBand() {
       const { data } = await getDashboardCounts();
       if (!data) return;
       setStats([
-        { icon: Store, n: data.farmers || 0, s: '', l: 'Registered Farmers' },
-        { icon: Users, n: data.customers || 0, s: '', l: 'Active Buyers' },
-        { icon: MapPin, n: data.markets || 0, s: '', l: 'Markets' },
-        { icon: Leaf, n: 100, s: '%', l: 'Fresh & Natural' },
+        { icon: Store, n: data.farmers || 0, s: '', lKey: 'home.bandFarmers' },
+        { icon: Users, n: data.customers || 0, s: '', lKey: 'home.bandBuyers' },
+        { icon: MapPin, n: data.markets || 0, s: '', lKey: 'home.bandMarkets' },
+        { icon: Leaf, n: 100, s: '%', lKey: 'home.bandFresh' },
       ]);
       setPreview({
         orders: data.orders || 0,
@@ -37,15 +39,15 @@ export default function DashboardBand() {
     <section className="band">
       <div className="wrap band-in reveal">
         <div className="band-crate">
-          <Img src={IMG.crate} alt="Vegetables crate" />
+          <Img src={IMG.crate} alt={t('hero.altCrate')} />
         </div>
         <div className="dash-txt">
           <h3>
-            <LayoutDashboard size={22} /> Farmer Dashboard Preview
+            <LayoutDashboard size={22} /> {t('home.bandTitle')}
           </h3>
-          <p>Manage your produce, track orders, and connect with local buyers — all in one place.</p>
+          <p>{t('home.bandLead')}</p>
           <button type="button" onClick={() => navigate('/register')} className="btn lime shine">
-            Start Selling <ArrowRight size={15} />
+            {t('home.bandStart')} <ArrowRight size={15} />
           </button>
         </div>
         <div className="laptop">
@@ -57,20 +59,20 @@ export default function DashboardBand() {
             </aside>
             <div className="dash">
               <div className="dtop">
-                <span>Welcome back</span>
-                <em>Live</em>
+                <span>{t('home.bandWelcome')}</span>
+                <em>{t('home.bandLive')}</em>
               </div>
               <div className="dstats">
                 <div>
-                  <small>Total Orders</small>
+                  <small>{t('home.bandOrders')}</small>
                   <b>{preview.orders}</b>
                 </div>
                 <div>
-                  <small>Products</small>
+                  <small>{t('home.bandProducts')}</small>
                   <b>{preview.products}</b>
                 </div>
                 <div>
-                  <small>Markets</small>
+                  <small>{t('home.bandMarkets')}</small>
                   <b>{stats[2]?.n || 0}</b>
                 </div>
               </div>
@@ -90,18 +92,18 @@ export default function DashboardBand() {
         </div>
         <div className="grow">
           <h3>
-            <Sprout size={22} /> Grow Your Business.
+            <Sprout size={22} /> {t('home.bandGrowTitle')}
             <br />
-            Not Your Workload.
+            {t('home.bandGrowLine2')}
           </h3>
           <div className="stats">
             {stats.map((s) => (
-              <div className="stat" key={s.l}>
+              <div className="stat" key={s.lKey}>
                 <div className="stic">
                   <s.icon size={20} />
                 </div>
                 <CountUp to={s.n} suffix={s.s} />
-                <small>{s.l}</small>
+                <small>{t(s.lKey)}</small>
               </div>
             ))}
           </div>

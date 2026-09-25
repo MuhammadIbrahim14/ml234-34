@@ -74,7 +74,11 @@ Set the same keys in Netlify → Site settings → Environment variables.
 4. Run `supabase/migrations/003_single_session.sql` (one active login per account).
 5. Run `supabase/migrations/004_password_otp.sql` (EmailJS OTP password reset).
 6. Run `supabase/migrations/005_wiring_hardening.sql` (approval RLS, notifications, contact, `accept_order` RPC).
-7. Optionally run `supabase/seed.sql` (Lahore markets + commented role helpers).
+7. Run `supabase/migrations/006_order_rules.sql` (farmer cutoff minutes; customer modify/cancel RPCs before cutoff).
+8. Run `supabase/migrations/007_restock_alerts.sql` (Phase 3 — restock alerts + preferred markets + restock notify trigger).
+9. Run `supabase/migrations/008_weekly_stock_template.sql` (Phase 4 — farmer weekly stock template + apply RPC).
+10. Run `supabase/migrations/009_review_moderation.sql` (review `is_hidden` + RLS; admin hide/delete) when using Phase 5.
+11. Optionally run `supabase/seed.sql` (Lahore markets + commented role helpers).
 
 Schema covers SRS-style entities: users/profiles, farmer profiles, markets, categories, products, orders, reviews, favorites, announcements, reports, notifications, contact messages, newsletter subscribers — with RLS and a signup trigger that inserts `profiles` (and `farmer_profiles` when role is farmer).
 
@@ -318,6 +322,79 @@ Run these after applying `005_wiring_hardening.sql` and `seed.sql`:
 | 10 | Home / Markets map | Seeded market pins on Leaflet OSM |
 
 **E2E results (code complete 2026-09-25):** Implementation and `npm run build` verified in repo. Live Supabase checks (rows 1–10 against a project) remain a **manual** step for the team after running SQL in the Dashboard.
+
+### 7.1 Phase 1 — Order rules (after 006)
+
+| # | Step | Expected |
+|---|------|----------|
+| 1 | Run `006_order_rules.sql` | Columns + RPCs created |
+| 2 | Farmer profile → set cutoff minutes | Saves next to pickup windows |
+| 3 | Customer place order → `/orders` edit qty | Works while `placed` and before cutoff |
+| 4 | Cancel same order before cutoff | Status `cancelled` |
+| 5 | Farmer accept order → customer edit | Blocked (not placed) |
+| 6 | Past cutoff → edit/cancel | Clear error: changes closed |
+
+### 7.2 Phase 2 — Discovery UX
+
+| # | Step | Expected |
+|---|------|----------|
+| 1 | `/products` Filters → price min/max | List narrows by price |
+| 2 | Filters → operating day (e.g. Sat) | Only markets/farmers open that day |
+| 3 | Open a product (name/image) | Drawer shows read-only reviews (or clean empty state) |
+| 4 | `/farmers` → Reviews | Stars + text; empty state if none |
+| 5 | `/markets` or home Explore map | Directions (Google/OSM) + farmer pins when lat/lng set |
+
+### 7.3 Phase 3 — Customer hub (after 007)
+
+| # | Step | Expected |
+|---|------|----------|
+| 1 | Run `007_restock_alerts.sql` | `restock_alerts` + `preferred_markets` + trigger |
+| 2 | Completed `/orders` → Order again | Cart preloads → `/cart` |
+| 3 | Out-of-stock favorite/product → Notify when back | Alert row; notification when stock returns |
+| 4 | Markets → Prefer | Appears under `/favorites` Preferred markets |
+| 5 | Home while signed in as customer | Optional “Your markets” if prefs exist |
+
+**Quick SQL confirm after 007:**
+
+```sql
+select to_regclass('public.restock_alerts') as restock_alerts,
+       to_regclass('public.preferred_markets') as preferred_markets;
+
+select tgname from pg_trigger where tgname = 'trg_notify_restock';
+-- Expect 1 row.
+```
+
+### 7.4 Phase 4 — Farmer tools (after 008)
+
+| # | Step | Expected |
+|---|------|----------|
+| 1 | Run `008_weekly_stock_template.sql` | `farmer_profiles.weekly_stock_template` + `apply_weekly_stock_template` RPC |
+| 2 | Farmer → My Products → Weekly stock template | Set qty per weekday; Save template |
+| 3 | Apply today’s template (approved farmer) | Products `stock_quantity` / `is_available` update |
+| 4 | Unapproved farmer → Apply | Blocked by product RLS (no privilege bypass) |
+| 5 | Sales & Insights / Overview | Bestsellers list (qty + revenue bars/rows) |
+
+### 7.5 Phase 5 — Admin insight + review moderation (after 009)
+
+| # | Step | Expected |
+|---|------|----------|
+| 1 | Run `009_review_moderation.sql` (after 001–007; and 008 if Phase 4 applied) | `reviews.is_hidden` + public select excludes hidden |
+| 2 | Admin → Reviews (or Moderation) | List reviews; Hide / Unhide / Delete |
+| 3 | Public product/farmer reviews | Hidden reviews not shown |
+| 4 | Admin → Reports → date range | Snapshot stats + revenue by market + top farmers |
+| 5 | Save snapshot | Row in `reports` with payload including `byMarket` / `topFarmers` |
+
+### 7.6 Phase 6 — Optional FAQ chatbot (no migration)
+
+Offline FAQ helper on **public / visitor routes only** (home, catalog pages, cart/orders, login/register). Hidden on farmer/admin dashboards. Answers come from a local knowledge base — no paid LLM required.
+
+| # | Step | Expected |
+|---|------|----------|
+| 1 | Open `/` (or `/markets`, `/products`, …) | Floating help button bottom-right |
+| 2 | Open chat → tap a quick topic | Answer + optional deep links (markets, cart, register, …) |
+| 3 | Type e.g. “how does pickup work?” | Offline FAQ answer about pre-order + pay at stall |
+| 4 | Visit `/dashboard/farmer` or `/dashboard/admin` | Help widget **not** shown |
+| 5 | Optional: set `VITE_FAQ_LLM_API_KEY` later | Same UI can call an LLM; until wired, offline FAQ still works |
 
 ---
 

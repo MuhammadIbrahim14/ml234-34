@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { updateMyProfile } from '../../lib/api/profiles';
 import { LoadingBlock, ErrorBanner, DemoModeNotice, SuccessNote } from '../ui/DataState';
 import ImageUploadField from '../ui/ImageUploadField';
 
 export default function ProfileSettings() {
+  const { t } = useTranslation();
   const { user, profile, isConfigured, refreshProfile } = useAuth();
   const [form, setForm] = useState({
     full_name: '',
@@ -40,7 +42,7 @@ export default function ProfileSettings() {
       setError(err);
       return;
     }
-    setOk('Profile saved.');
+    setOk(t('dash.settings.saved'));
     if (typeof refreshProfile === 'function') await refreshProfile();
     else if (data) {
       setForm({
@@ -53,42 +55,42 @@ export default function ProfileSettings() {
   }
 
   if (!isConfigured) return <DemoModeNotice />;
-  if (loading) return <LoadingBlock label="Loading settings…" />;
+  if (loading) return <LoadingBlock label={t('dash.settings.loading')} />;
 
   return (
     <div className="dash-panel action-panel">
       <div className="panel-title">
         <div>
-          <span className="eyebrow">Account</span>
-          <h3>Profile settings</h3>
+          <span className="eyebrow">{t('dash.settings.account')}</span>
+          <h3>{t('dash.settings.title')}</h3>
         </div>
       </div>
       <ErrorBanner message={error} />
       <SuccessNote message={ok} />
       <form className="form-grid" onSubmit={onSubmit}>
         <label>
-          Full name
+          {t('dash.settings.fullName')}
           <input required value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />
         </label>
         <label>
-          Contact number
+          {t('dash.settings.contactNumber')}
           <input value={form.contact_number} onChange={(e) => setForm({ ...form, contact_number: e.target.value })} />
         </label>
         <label style={{ gridColumn: '1 / -1' }}>
-          Address
+          {t('dash.settings.address')}
           <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
         </label>
         <ImageUploadField
-          label="Avatar"
+          label={t('dash.settings.avatar')}
           value={form.avatar_url}
           onChange={(url) => setForm({ ...form, avatar_url: url })}
           disabled={busy}
         />
         <p className="muted" style={{ gridColumn: '1 / -1', fontSize: 12, margin: 0 }}>
-          Email: {profile?.email || user?.email || '—'} (managed by Auth)
+          {t('dash.settings.emailManaged', { email: profile?.email || user?.email || '—' })}
         </p>
         <button className="btn" type="submit" disabled={busy}>
-          {busy ? 'Saving…' : 'Save profile'}
+          {busy ? t('common.saving') : t('dash.settings.saveProfile')}
         </button>
       </form>
     </div>

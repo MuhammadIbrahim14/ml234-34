@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ArrowRight,
   Leaf,
@@ -19,6 +20,7 @@ import { dashboardPathForRole, ROLES } from '../lib/supabase';
 import { flashToast } from '../lib/flashToast';
 
 export default function Auth({ mode = 'login' }) {
+  const { t } = useTranslation();
   const {
     signIn,
     signUp,
@@ -139,36 +141,38 @@ export default function Auth({ mode = 'login' }) {
   const showForgot = mode === 'login' && forgotStep;
   const title =
     forgotStep === 'email'
-      ? 'Forgot your password?'
+      ? t('auth.forgotTitle')
       : forgotStep === 'otp'
-        ? 'Enter OTP & new password'
+        ? t('auth.otpTitle')
         : mode === 'login'
-          ? 'Login to MarketLink'
-          : 'Join the local food community';
+          ? t('auth.loginTitle')
+          : t('auth.registerTitle');
   const subtitle =
     forgotStep === 'email'
-      ? 'We will email a one-time code. Enter it next to set a new password.'
+      ? t('auth.forgotSubtitle')
       : forgotStep === 'otp'
-        ? 'Check your inbox for the 6-digit OTP, then choose a new password.'
+        ? t('auth.otpSubtitle')
         : isConfigured
-          ? 'One secure login for every role. Customers shop on the site; farmers and admins open their dashboard after sign-in.'
-          : 'Demo mode — set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to enable live auth.';
+          ? mode === 'login'
+            ? t('auth.loginSubtitle')
+            : t('auth.registerSubtitle')
+          : t('auth.demoSubtitle');
 
   return (
     <div className="auth-page">
       <div className="auth-image">
         <img
           src="https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=1200&q=85"
-          alt="Farmer working in a field"
+          alt={t('auth.imageAlt')}
         />
         <div className="auth-image-copy">
-          <span className="auth-pill"><Leaf size={14} /> MarketLink</span>
-          <b>Fresh from local hands.</b>
-          <small>Discover nearby markets, pre-order produce, and support farmers in your community.</small>
+          <span className="auth-pill"><Leaf size={14} /> {t('auth.pill')}</span>
+          <b>{t('auth.sideTitle')}</b>
+          <small>{t('auth.sideBlurb')}</small>
           <ul className="auth-perks">
-            <li><ShieldCheck size={15} /> Secure role-based access</li>
-            <li><Sparkles size={15} /> Pickup-only, no delivery fees</li>
-            <li><Leaf size={15} /> Local stock, weekly freshness</li>
+            <li><ShieldCheck size={15} /> {t('auth.perk1')}</li>
+            <li><Sparkles size={15} /> {t('auth.perk2')}</li>
+            <li><Leaf size={15} /> {t('auth.perk3')}</li>
           </ul>
         </div>
       </div>
@@ -178,52 +182,60 @@ export default function Auth({ mode = 'login' }) {
           <button className="auth-logo" type="button" onClick={() => navigate('/')}>
             <span><Leaf size={20} /></span>
             <div>
-              <b>MarketLink</b>
-              <small>Local food community</small>
+              <b>{t('pages.brand')}</b>
+              <small>{t('auth.tagline')}</small>
             </div>
           </button>
 
           <div className="auth-head">
             <span className="eyebrow">
-              {showForgot ? 'Account recovery' : mode === 'login' ? 'Welcome back' : 'Create your account'}
+              {showForgot
+                ? t('auth.forgotEyebrow')
+                : mode === 'login'
+                  ? t('auth.loginEyebrow')
+                  : t('auth.registerEyebrow')}
             </span>
             <h1>{title}</h1>
             <p>{subtitle}</p>
           </div>
 
           {mode === 'login' && !showForgot && (
+            <p className="auth-role-note">{t('auth.rolePitchNote')}</p>
+          )}
+
+          {mode === 'login' && !showForgot && (
             <div className="auth-steps" aria-hidden>
-              <span className="on">1. Sign in</span>
-              <span>2. Shop or manage</span>
+              <span className="on">{t('auth.stepSignIn')}</span>
+              <span>{t('auth.stepShop')}</span>
             </div>
           )}
           {mode === 'register' && (
             <div className="auth-steps" aria-hidden>
-              <span className="on">1. Details</span>
-              <span className={isFarmer ? 'on' : ''}>2. Role</span>
-              <span>3. Start</span>
+              <span className="on">{t('auth.stepDetails')}</span>
+              <span className={isFarmer ? 'on' : ''}>{t('auth.stepRole')}</span>
+              <span>{t('auth.stepStart')}</span>
             </div>
           )}
           {forgotStep === 'email' && (
             <div className="auth-steps" aria-hidden>
-              <span className="on">1. Email</span>
-              <span>2. OTP</span>
-              <span>3. New password</span>
+              <span className="on">{t('auth.stepEmail')}</span>
+              <span>{t('auth.stepOtp')}</span>
+              <span>{t('auth.stepNewPassword')}</span>
             </div>
           )}
           {forgotStep === 'otp' && (
             <div className="auth-steps" aria-hidden>
-              <span>1. Email</span>
-              <span className="on">2. OTP</span>
-              <span className="on">3. New password</span>
+              <span>{t('auth.stepEmail')}</span>
+              <span className="on">{t('auth.stepOtp')}</span>
+              <span className="on">{t('auth.stepNewPassword')}</span>
             </div>
           )}
 
           {forgotStep === 'email' ? (
             <form className="auth-form" onSubmit={onForgotEmail}>
               <label className="auth-field">
-                <span className="auth-field-label"><Mail size={15} /> Email</span>
-                <input type="email" required placeholder="you@example.com" value={form.email} onChange={set('email')} autoComplete="email" />
+                <span className="auth-field-label"><Mail size={15} /> {t('auth.email')}</span>
+                <input type="email" required placeholder={t('auth.emailPlaceholder')} value={form.email} onChange={set('email')} autoComplete="email" />
               </label>
               {(authError || info) && (
                 <p className={'auth-msg' + (authError ? ' err' : ' ok')} role="alert">
@@ -231,22 +243,22 @@ export default function Auth({ mode = 'login' }) {
                 </p>
               )}
               <button className="btn full auth-submit" type="submit" disabled={busy}>
-                {busy ? 'Please wait…' : 'Send OTP'} <ArrowRight size={16} />
+                {busy ? t('auth.busy') : t('auth.sendOtp')} <ArrowRight size={16} />
               </button>
             </form>
           ) : forgotStep === 'otp' ? (
             <form className="auth-form" onSubmit={onForgotComplete}>
               <label className="auth-field">
-                <span className="auth-field-label"><Mail size={15} /> Email</span>
-                <input type="email" required placeholder="you@example.com" value={form.email} onChange={set('email')} autoComplete="email" />
+                <span className="auth-field-label"><Mail size={15} /> {t('auth.email')}</span>
+                <input type="email" required placeholder={t('auth.emailPlaceholder')} value={form.email} onChange={set('email')} autoComplete="email" />
               </label>
               <label className="auth-field">
-                <span className="auth-field-label"><KeyRound size={15} /> OTP code</span>
-                <input required placeholder="6-digit code" value={form.otp} onChange={set('otp')} inputMode="numeric" autoComplete="one-time-code" />
+                <span className="auth-field-label"><KeyRound size={15} /> {t('auth.otp')}</span>
+                <input required placeholder={t('auth.otpPlaceholder')} value={form.otp} onChange={set('otp')} inputMode="numeric" autoComplete="one-time-code" />
               </label>
               <label className="auth-field">
-                <span className="auth-field-label"><Lock size={15} /> New password</span>
-                <input type="password" required placeholder="At least 6 characters" value={form.newPassword} onChange={set('newPassword')} autoComplete="new-password" minLength={6} />
+                <span className="auth-field-label"><Lock size={15} /> {t('auth.newPassword')}</span>
+                <input type="password" required placeholder={t('auth.passwordPlaceholder')} value={form.newPassword} onChange={set('newPassword')} autoComplete="new-password" minLength={6} />
               </label>
               {(authError || info) && (
                 <p className={'auth-msg' + (authError ? ' err' : ' ok')} role="alert">
@@ -254,7 +266,7 @@ export default function Auth({ mode = 'login' }) {
                 </p>
               )}
               <button className="btn full auth-submit" type="submit" disabled={busy}>
-                {busy ? 'Please wait…' : 'Update password'} <ArrowRight size={16} />
+                {busy ? t('auth.busy') : t('auth.updatePassword')} <ArrowRight size={16} />
               </button>
             </form>
           ) : (
@@ -262,36 +274,36 @@ export default function Auth({ mode = 'login' }) {
               {mode === 'register' && (
                 <>
                   <label className="auth-field">
-                    <span className="auth-field-label"><User size={15} /> Full name</span>
-                    <input required placeholder="Your full name" value={form.fullName} onChange={set('fullName')} />
+                    <span className="auth-field-label"><User size={15} /> {t('auth.fullName')}</span>
+                    <input required placeholder={t('auth.fullNamePlaceholder')} value={form.fullName} onChange={set('fullName')} />
                   </label>
                   <label className="auth-field">
-                    <span className="auth-field-label"><Phone size={15} /> Contact number</span>
-                    <input required placeholder="03xx-xxxxxxx" value={form.contactNumber} onChange={set('contactNumber')} />
+                    <span className="auth-field-label"><Phone size={15} /> {t('auth.phone')}</span>
+                    <input required placeholder={t('auth.phonePlaceholder')} value={form.contactNumber} onChange={set('contactNumber')} />
                   </label>
                   <label className="auth-field">
-                    <span className="auth-field-label"><MapPin size={15} /> Address</span>
-                    <input required placeholder="Your pickup area" value={form.address} onChange={set('address')} />
+                    <span className="auth-field-label"><MapPin size={15} /> {t('auth.address')}</span>
+                    <input required placeholder={t('auth.addressPlaceholder')} value={form.address} onChange={set('address')} />
                   </label>
-                  <div className="role-toggle" role="group" aria-label="Account type">
+                  <div className="role-toggle" role="group" aria-label={t('auth.accountType')}>
                     <button type="button" className={!isFarmer ? 'selected' : ''} onClick={() => setIsFarmer(false)}>
-                      <User size={16} /> Customer
+                      <User size={16} /> {t('auth.roleCustomer')}
                     </button>
                     <button type="button" className={isFarmer ? 'selected' : ''} onClick={() => setIsFarmer(true)}>
-                      <Store size={16} /> Farmer
+                      <Store size={16} /> {t('auth.roleFarmer')}
                     </button>
                   </div>
                   {isFarmer && (
                     <div className="auth-farmer-block">
                       <label className="auth-field">
-                        <span className="auth-field-label"><Store size={15} /> Stall / business name</span>
-                        <input required placeholder="Your farm or stall name" value={form.stallName} onChange={set('stallName')} />
+                        <span className="auth-field-label"><Store size={15} /> {t('auth.stallName')}</span>
+                        <input required placeholder={t('auth.stallPlaceholder')} value={form.stallName} onChange={set('stallName')} />
                       </label>
                       <label className="auth-field">
-                        <span className="auth-field-label"><GraduationCap size={15} /> Education level</span>
+                        <span className="auth-field-label"><GraduationCap size={15} /> {t('auth.education')}</span>
                         <select value={edu} onChange={(e) => setEdu(e.target.value)}>
-                          <option value="educated">Educated</option>
-                          <option value="uneducated">Uneducated</option>
+                          <option value="educated">{t('auth.educated')}</option>
+                          <option value="uneducated">{t('auth.uneducated')}</option>
                         </select>
                       </label>
                     </div>
@@ -299,11 +311,11 @@ export default function Auth({ mode = 'login' }) {
                 </>
               )}
               <label className="auth-field">
-                <span className="auth-field-label"><Mail size={15} /> Email</span>
-                <input type="email" required placeholder="you@example.com" value={form.email} onChange={set('email')} autoComplete="email" />
+                <span className="auth-field-label"><Mail size={15} /> {t('auth.email')}</span>
+                <input type="email" required placeholder={t('auth.emailPlaceholder')} value={form.email} onChange={set('email')} autoComplete="email" />
               </label>
               <label className="auth-field">
-                <span className="auth-field-label"><Lock size={15} /> Password</span>
+                <span className="auth-field-label"><Lock size={15} /> {t('auth.password')}</span>
                 <input type="password" required placeholder="••••••••" value={form.password} onChange={set('password')} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} minLength={6} />
               </label>
               {mode === 'login' && (
@@ -316,7 +328,7 @@ export default function Auth({ mode = 'login' }) {
                       setInfo('');
                     }}
                   >
-                    Forgot password?
+                    {t('auth.forgotLink')}
                   </button>
                 </div>
               )}
@@ -326,7 +338,7 @@ export default function Auth({ mode = 'login' }) {
                 </p>
               )}
               <button className="btn full auth-submit" type="submit" disabled={busy}>
-                {busy ? 'Please wait…' : mode === 'login' ? 'Login' : 'Create Account'} <ArrowRight size={16} />
+                {busy ? t('auth.busy') : mode === 'login' ? t('auth.login') : t('auth.createAccount')} <ArrowRight size={16} />
               </button>
             </form>
           )}
@@ -341,17 +353,17 @@ export default function Auth({ mode = 'login' }) {
                   setInfo('');
                 }}
               >
-                ← Back to login
+                ← {t('auth.backToLogin')}
               </button>
             ) : mode === 'login' ? (
               <>
-                Don&apos;t have an account?{' '}
-                <button type="button" onClick={() => navigate('/register')}>Register</button>
+                {t('auth.noAccount')}{' '}
+                <button type="button" onClick={() => navigate('/register')}>{t('auth.registerLink')}</button>
               </>
             ) : (
               <>
-                Already have an account?{' '}
-                <button type="button" onClick={() => navigate('/login')}>Login</button>
+                {t('auth.haveAccount')}{' '}
+                <button type="button" onClick={() => navigate('/login')}>{t('auth.login')}</button>
               </>
             )}
           </div>

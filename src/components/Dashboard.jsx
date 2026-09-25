@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { navigate } from '../router';
 import { useAuth } from '../context/AuthContext';
 import { flashToast } from '../lib/flashToast';
@@ -19,15 +20,42 @@ import AdminProducts from './dashboard/AdminProducts';
 import AdminOrders from './dashboard/AdminOrders';
 import AdminAnnouncements from './dashboard/AdminAnnouncements';
 import AdminReports from './dashboard/AdminReports';
+import AdminReviews from './dashboard/AdminReviews';
 import NotificationsPanel from './dashboard/NotificationsPanel';
 import ProfileSettings from './dashboard/ProfileSettings';
 import AdminContactMessages from './dashboard/AdminContactMessages';
 import AdminPickupSlots from './dashboard/AdminPickupSlots';
 import { EmptyState, DemoModeNotice } from './ui/DataState';
+import LanguageSwitcher from './LanguageSwitcher';
+
+/** English section ids (stable for paths / routing) → dash.nav* keys */
+const NAV_LABEL_KEY = {
+  Overview: 'navOverview',
+  'My Products': 'navProducts',
+  'Add Product': 'navAddProduct',
+  'Pre-Orders': 'navPreOrders',
+  'Sales & Insights': 'navInsights',
+  Reviews: 'navReviews',
+  Profile: 'navProfile',
+  Notifications: 'navNotifications',
+  Settings: 'navSettings',
+  Markets: 'navMarkets',
+  Farmers: 'navFarmers',
+  Customers: 'navCustomers',
+  Products: 'navCatalog',
+  Inventory: 'navInventory',
+  Orders: 'navOrders',
+  Moderation: 'navModeration',
+  Announcements: 'navAnnouncements',
+  Reports: 'navReports',
+  'Pickup Slots': 'navSlots',
+};
 
 const roles = {
   farmer: {
-    title: 'Farmer Dashboard', name: 'Farmer', color: 'Farmer',
+    roleKey: 'farmerRole',
+    workspaceKey: 'farmerWorkspace',
+    nameKey: 'farmerRole',
     items: [
       ['Overview', LayoutDashboard], ['My Products', Package], ['Add Product', Plus],
       ['Pre-Orders', ClipboardList], ['Markets', Store], ['Sales & Insights', BarChart3],
@@ -35,16 +63,20 @@ const roles = {
     ]
   },
   admin: {
-    title: 'Admin Dashboard', name: 'MarketLink Admin', color: 'Admin',
+    roleKey: 'adminRole',
+    workspaceKey: 'adminWorkspace',
+    nameKey: 'adminName',
     items: [
       ['Overview', LayoutDashboard], ['Farmers', Users], ['Customers', Users],
       ['Markets', Store], ['Products', Package], ['Orders', ShoppingBag],
-      ['Moderation', ShieldCheck], ['Reports', BarChart3], ['Announcements', Megaphone],
-      ['Notifications', Bell], ['Settings', Settings]
+      ['Moderation', ShieldCheck], ['Reviews', MessageSquare], ['Reports', BarChart3],
+      ['Announcements', Megaphone], ['Notifications', Bell], ['Settings', Settings]
     ]
   },
   manager: {
-    title: 'Manager Dashboard', name: 'Market Manager', color: 'Manager',
+    roleKey: 'managerRole',
+    workspaceKey: 'managerWorkspace',
+    nameKey: 'managerName',
     items: [
       ['Overview', LayoutDashboard], ['Markets', Store], ['Orders', ShoppingBag],
       ['Farmers', Users], ['Inventory', Package], ['Pickup Slots', CalendarDays],
@@ -53,26 +85,10 @@ const roles = {
   }
 };
 
-const titles = {
-  'Reviews': 'Ratings and customer feedback',
-  'Profile': 'Profile management',
-  'My Products': 'Manage weekly stock and pricing',
-  'Add Product': 'Add a new product listing',
-  'Pre-Orders': 'Incoming pre-orders',
-  'Markets': 'Market locations and schedules',
-  'Sales & Insights': 'Sales history and performance insights',
-  'Farmers': 'Farmer accounts and approvals',
-  'Customers': 'Customer accounts',
-  'Orders': 'Platform orders',
-  'Products': 'Platform product listings',
-  'Moderation': 'Content moderation queue',
-  'Reports': 'Reports and analytics',
-  'Announcements': 'Platform announcements',
-  'Inventory': 'Inventory overview',
-  'Pickup Slots': 'Pickup time windows',
-  'Notifications': 'Notifications',
-  'Settings': 'Account and system settings',
-};
+function navLabel(t, label) {
+  const key = NAV_LABEL_KEY[label];
+  return key ? t(`dash.${key}`) : label;
+}
 
 function Placeholder({ title, message }) {
   return (
@@ -83,6 +99,8 @@ function Placeholder({ title, message }) {
 }
 
 function DashboardContent({ role, section }) {
+  const { t } = useTranslation();
+
   if (section === 'Overview' || !section) return <DashboardOverview role={role} />;
 
   if (section === 'Notifications') return <NotificationsPanel />;
@@ -95,13 +113,13 @@ function DashboardContent({ role, section }) {
           <div className="dash-panel">
             <div className="panel-title">
               <div>
-                <span className="eyebrow">Stall</span>
-                <h3>Stall profile</h3>
+                <span className="eyebrow">{t('dash.farmer.stallSettingsEyebrow')}</span>
+                <h3>{t('dash.farmer.stallProfile')}</h3>
               </div>
             </div>
-            <p className="muted">Update stall name, operating days, and pickup windows under Profile.</p>
+            <p className="muted">{t('dash.farmer.stallSettingsHint')}</p>
             <button className="btn sm" type="button" onClick={() => navigate('/dashboard/farmer/profile')}>
-              Open stall profile
+              {t('dash.farmer.openStallProfile')}
             </button>
           </div>
         )}
@@ -112,7 +130,8 @@ function DashboardContent({ role, section }) {
   if (role === 'farmer') {
     if (section === 'My Products') return <FarmerProducts mode="list" />;
     if (section === 'Add Product') return <FarmerProducts mode="add" />;
-    if (section === 'Pre-Orders' || section === 'Sales & Insights') return <FarmerOrders />;
+    if (section === 'Pre-Orders') return <FarmerOrders focus="orders" />;
+    if (section === 'Sales & Insights') return <FarmerOrders focus="insights" />;
     if (section === 'Markets' || section === 'Profile') return <FarmerProfile />;
     if (section === 'Reviews') return <FarmerReviews />;
   }
@@ -126,10 +145,12 @@ function DashboardContent({ role, section }) {
       return (
         <div className="panel-grid">
           <AdminProducts moderation />
+          {role === 'admin' && <AdminReviews />}
           {role === 'admin' && <AdminContactMessages />}
         </div>
       );
     }
+    if (section === 'Reviews' && role === 'admin') return <AdminReviews />;
     if (section === 'Orders') return <AdminOrders />;
     if (section === 'Announcements') return <AdminAnnouncements />;
     if (section === 'Reports') return <AdminReports />;
@@ -141,21 +162,22 @@ function DashboardContent({ role, section }) {
       <div className="page-head">
         <div>
           <span className="eyebrow">MarketLink</span>
-          <h1>{titles[section] || section}</h1>
-          <p>{titles[section] || 'Workspace section'}</p>
+          <h1>{navLabel(t, section) || section}</h1>
+          <p>{t('dash.sectionFallback')}</p>
         </div>
-        <button className="btn" type="button" onClick={() => navigate('/')}>Back Home</button>
+        <button className="btn" type="button" onClick={() => navigate('/')}>{t('dash.backHome')}</button>
       </div>
       <DemoModeNotice />
-      <Placeholder title={section} message="This section has no extra records yet." />
+      <Placeholder title={navLabel(t, section) || section} message={t('dash.placeholderEmpty')} />
     </section>
   );
 }
 
 export default function Dashboard({ role = 'farmer' }) {
+  const { t } = useTranslation();
   const { profile, signOut, isConfigured } = useAuth();
   const cfg = roles[role] || roles.farmer;
-  const displayName = profile?.full_name || cfg.name;
+  const displayName = profile?.full_name || t(`dash.${cfg.nameKey}`);
   const pathPart = window.location.pathname.split('/').slice(3).join('/');
   const initialSection = pathPart
     ? (cfg.items.find(([label]) => label.toLowerCase().replaceAll(' ', '-') === pathPart)?.[0] || 'Overview')
@@ -183,7 +205,7 @@ export default function Dashboard({ role = 'farmer' }) {
 
   const logout = async () => {
     await signOut();
-    flashToast('You are logged out. See you soon!');
+    flashToast(t('nav.logoutToast'));
     navigate('/');
   };
 
@@ -194,7 +216,7 @@ export default function Dashboard({ role = 'farmer' }) {
           <div className="dash-leaf">⌁</div>
           <div>
             <b>MarketLink</b>
-            <small>{cfg.color} Workspace</small>
+            <small>{t(`dash.${cfg.workspaceKey}`)}</small>
           </div>
           <button className="dash-close" type="button" onClick={() => setMobile(false)}>
             <X />
@@ -211,21 +233,27 @@ export default function Dashboard({ role = 'farmer' }) {
           <div>
             <b>{displayName}</b>
             <small>
-              {cfg.color}
-              {!isConfigured ? ' · demo' : ''}
+              {t(`dash.${cfg.roleKey}`)}
+              {!isConfigured ? ` · ${t('dash.demo')}` : ''}
             </small>
           </div>
+        </div>
+        <div style={{ padding: '0 8px 12px' }}>
+          <LanguageSwitcher />
         </div>
         <nav className="dash-nav">
           {cfg.items.map(([label, I]) => (
             <button className={section === label ? 'active' : ''} key={label} type="button" onClick={() => choose(label)}>
               <I size={18} />
-              <span>{label}</span>
+              <span>{navLabel(t, label)}</span>
             </button>
           ))}
         </nav>
+        <button className="dash-logout" type="button" onClick={() => navigate('/')}>
+          {t('dash.backHome')}
+        </button>
         <button className="dash-logout" type="button" onClick={logout}>
-          <LogOut size={17} /> Sign out
+          <LogOut size={17} /> {t('dash.signOut')}
         </button>
       </aside>
       <main className="dash-main">
@@ -234,8 +262,8 @@ export default function Dashboard({ role = 'farmer' }) {
             <Menu />
           </button>
           <div>
-            <span className="eyebrow">{cfg.color} portal</span>
-            <strong>{section}</strong>
+            <span className="eyebrow">{t(`dash.${cfg.roleKey}`)} {t('dash.portal')}</span>
+            <strong>{navLabel(t, section)}</strong>
           </div>
           <div className="dash-actions">
             <button type="button" onClick={() => choose('Notifications')}>

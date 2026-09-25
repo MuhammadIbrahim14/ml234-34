@@ -1,23 +1,26 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Search, Sun, Moon, Heart, ShoppingCart, LayoutDashboard, Package, LogOut, LogIn, Bell } from 'lucide-react';
 import { navigate } from '../../router';
 import Logo from '../../components/Logo';
+import LanguageSwitcher from '../LanguageSwitcher';
 import { useAuth } from '../../context/AuthContext';
 import { flashToast } from '../../lib/flashToast';
 import { countUnreadNotifications } from '../../lib/api/notifications';
 
 export default function Navbar({ setTheme, dark, cart }) {
+  const { t } = useTranslation();
   const { isAuthenticated, dashboardPath, signOut, profile, role, loading, user, isConfigured } = useAuth();
   const showDashboard = isAuthenticated && dashboardPath.startsWith('/dashboard');
-  const displayName = profile?.full_name || profile?.email || 'Member';
+  const displayName = profile?.full_name || profile?.email || t('common.member');
   const [unread, setUnread] = useState(0);
   const [navQ, setNavQ] = useState('');
   const links = [
-    ['Home', '/'],
-    ['Markets', '/markets'],
-    ['Products', '/products'],
-    ['Farmers', '/farmers'],
-    ['About', '/about'],
+    [t('nav.home'), '/'],
+    [t('nav.markets'), '/markets'],
+    [t('nav.products'), '/products'],
+    [t('nav.farmers'), '/farmers'],
+    [t('nav.about'), '/about'],
   ];
 
   useEffect(() => {
@@ -30,21 +33,21 @@ export default function Navbar({ setTheme, dark, cart }) {
       const n = await countUnreadNotifications(user.id);
       if (!cancelled) setUnread(n);
     })();
-    const t = setInterval(async () => {
+    const tmr = setInterval(async () => {
       if (!isConfigured || !isAuthenticated || !user?.id) return;
       const n = await countUnreadNotifications(user.id);
       if (!cancelled) setUnread(n);
     }, 45000);
     return () => {
       cancelled = true;
-      clearInterval(t);
+      clearInterval(tmr);
     };
   }, [isConfigured, isAuthenticated, user?.id]);
 
   async function onLogout() {
     if (loading) return;
     await signOut();
-    flashToast('You are logged out. See you soon!');
+    flashToast(t('nav.logoutToast'));
     navigate('/');
   }
 
@@ -72,10 +75,10 @@ export default function Navbar({ setTheme, dark, cart }) {
         <button className="nav-logo-btn" type="button" onClick={() => navigate('/')}>
           <Logo />
         </button>
-        <nav className="links" aria-label="Primary">
+        <nav className="links" aria-label={t('nav.primary')}>
           {links.map(([l, p]) => (
             <button
-              key={l}
+              key={p}
               type="button"
               className={window.location.pathname === p ? 'on' : ''}
               onClick={() => navigate(p)}
@@ -89,32 +92,33 @@ export default function Navbar({ setTheme, dark, cart }) {
           <input
             value={navQ}
             onChange={(e) => setNavQ(e.target.value)}
-            placeholder="Search products, markets…"
-            aria-label="Search"
+            placeholder={t('nav.searchPlaceholder')}
+            aria-label={t('common.search')}
           />
         </form>
         <div className="nicons">
-          <button className="theme-sw" type="button" onClick={() => setTheme()} aria-label="Toggle theme">
+          <LanguageSwitcher />
+          <button className="theme-sw" type="button" onClick={() => setTheme()} aria-label={t('nav.theme')}>
             <Sun size={13} />
             <Moon size={13} />
             <span className="knob">{dark ? <Moon size={13} /> : <Sun size={13} />}</span>
           </button>
 
           {isAuthenticated && (
-            <button className="ic" type="button" onClick={goNotifications} aria-label="Notifications" title="Notifications">
+            <button className="ic" type="button" onClick={goNotifications} aria-label={t('nav.notifications')} title={t('nav.notifications')}>
               <Bell size={18} className="bell" />
               {unread > 0 && <span className="dot bump">{unread > 9 ? '9+' : unread}</span>}
             </button>
           )}
 
           {showDashboard && (
-            <button className="ic" type="button" onClick={() => navigate(dashboardPath)} aria-label="Dashboard" title="Dashboard">
+            <button className="ic" type="button" onClick={() => navigate(dashboardPath)} aria-label={t('nav.dashboard')} title={t('nav.dashboard')}>
               <LayoutDashboard size={18} />
             </button>
           )}
 
           {isAuthenticated && !showDashboard && (
-            <button className="ic" type="button" onClick={() => navigate('/orders')} aria-label="My orders" title="My orders">
+            <button className="ic" type="button" onClick={() => navigate('/orders')} aria-label={t('nav.orders')} title={t('nav.orders')}>
               <Package size={18} />
             </button>
           )}
@@ -123,12 +127,12 @@ export default function Navbar({ setTheme, dark, cart }) {
             className="ic"
             type="button"
             onClick={() => navigate(isAuthenticated ? '/favorites' : '/login')}
-            aria-label="Favourites"
+            aria-label={t('nav.favourites')}
           >
             <Heart size={18} />
           </button>
 
-          <button className="ic" type="button" onClick={() => navigate('/cart')} aria-label="Cart">
+          <button className="ic" type="button" onClick={() => navigate('/cart')} aria-label={t('nav.cart')}>
             <ShoppingCart size={18} />
             {cart > 0 && <span className="dot bump">{cart}</span>}
           </button>
@@ -145,10 +149,10 @@ export default function Navbar({ setTheme, dark, cart }) {
                 </span>
                 <span className="nav-user-meta">
                   <b>{displayName.split(' ')[0]}</b>
-                  <small>Signed in{role ? ` · ${role}` : ''}</small>
+                  <small>{t('nav.signedIn', { role: role || '' })}</small>
                 </span>
               </div>
-              <button className="ic nav-logout" type="button" onClick={onLogout} aria-label="Log out" title="Log out">
+              <button className="ic nav-logout" type="button" onClick={onLogout} aria-label={t('nav.logout')} title={t('nav.logout')}>
                 <LogOut size={18} />
               </button>
             </>
@@ -157,8 +161,8 @@ export default function Navbar({ setTheme, dark, cart }) {
               className="ic nav-user"
               type="button"
               onClick={() => navigate('/login')}
-              aria-label="Log in"
-              title="Log in"
+              aria-label={t('nav.login')}
+              title={t('nav.login')}
             >
               <LogIn size={18} />
             </button>

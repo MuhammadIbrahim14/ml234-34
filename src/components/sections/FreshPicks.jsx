@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { navigate } from '../../router';
 import { Leaf, ShoppingCart, MapPin, ArrowRight, Users } from 'lucide-react';
 import { listProducts, productFarmerName } from '../../lib/api/products';
@@ -10,6 +11,7 @@ import { useAuth } from '../../context/AuthContext';
 import { EmptyState, LoadingBlock, DemoModeNotice } from '../ui/DataState';
 
 export default function FreshPicks({ onToast }) {
+  const { t } = useTranslation();
   const { addItem } = useCart();
   const { isAuthenticated } = useAuth();
   const [rows, setRows] = useState([]);
@@ -40,28 +42,28 @@ export default function FreshPicks({ onToast }) {
       image_url: p.image_url,
       farmer_name: productFarmerName(p),
     });
-    onToast?.(p.name + ' added to cart');
+    onToast?.(p.name + ' — ' + t('pages.addedCart'));
   }
 
   return (
     <section className="wrap sec">
       <div className="shead reveal">
         <div>
-          <span className="eyebrow">Fresh Picks</span>
+          <span className="eyebrow">{t('home.freshEyebrow')}</span>
           <h2 className="with-ic">
-            <Leaf size={24} className="hic" /> Fresh Produce, Just For You
+            <Leaf size={24} className="hic" /> {t('home.freshTitle')}
           </h2>
-          <p className="muted">Handpicked by local farmers. Fresh, seasonal and full of goodness.</p>
+          <p className="muted">{t('home.freshLead')}</p>
         </div>
         <a className="viewall" onClick={() => navigate('/products')}>
-          View All <ArrowRight size={16} />
+          {t('home.viewAll')} <ArrowRight size={16} />
         </a>
       </div>
       <DemoModeNotice />
       {loading ? (
-        <LoadingBlock label="Loading fresh picks…" />
+        <LoadingBlock label={t('common.loading')} />
       ) : error || !rows.length ? (
-        <EmptyState title="No products yet" message={error || 'Farmers have not listed available stock yet.'} />
+        <EmptyState title={t('home.freshEmpty')} message={error || t('common.emptyMessage')} />
       ) : (
         <div className="pgrid">
           {rows.map((p, i) => (
@@ -74,17 +76,17 @@ export default function FreshPicks({ onToast }) {
               <div className="pbody">
                 <b className="pname">{p.name}</b>
                 <div className="price">
-                  Rs. {p.price}
+                  {t('common.rs')} {p.price}
                   <span>/{p.unit}</span>
                 </div>
                 <small>
                   <Users size={12} /> {productFarmerName(p)}
                 </small>
                 <small>
-                  <MapPin size={12} /> {p.markets?.market_name || 'Local market'}
+                  <MapPin size={12} /> {p.markets?.market_name || t('home.localMarket')}
                 </small>
                 <button className="btn full shine" type="button" onClick={() => add(p)}>
-                  Add to Cart <ShoppingCart size={14} />
+                  {t('pages.addToCart')} <ShoppingCart size={14} />
                 </button>
               </div>
             </div>

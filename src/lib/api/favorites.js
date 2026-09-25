@@ -3,7 +3,7 @@ import { apiError, DEMO_CRUD_MSG } from './errors';
 
 const FAV_SELECT = `
   favorite_id, customer_id, farmer_id, product_id, created_at,
-  products ( product_id, name, price, unit, image_url, is_available ),
+  products ( product_id, name, price, unit, image_url, is_available, stock_quantity ),
   profiles!favorites_farmer_id_fkey ( full_name, farmer_profiles ( stall_name ) )
 `;
 

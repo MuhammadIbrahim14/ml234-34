@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { navigate } from "../../router";
 import { Leaf, MapPin, Truck, Sprout, ArrowRight, ShoppingBasket } from "lucide-react";
 import { IMG } from "../../data/data";
 import Img from "../../components/Img";
 
 export default function Hero() {
+  const { t } = useTranslation();
   const [q, setQ] = useState("");
 
   function goSearch(e) {
@@ -13,66 +15,61 @@ export default function Hero() {
     navigate(trimmed ? `/products?q=${encodeURIComponent(trimmed)}` : "/products");
   }
 
+  const perks = [
+    { i: Sprout, title: t("hero.perkFarmers"), sub: t("hero.perkFarmersSub") },
+    { i: ShoppingBasket, title: t("hero.perkProduce"), sub: t("hero.perkProduceSub") },
+    { i: Truck, title: t("hero.perkPickup"), sub: t("hero.perkPickupSub") },
+  ];
+
   return (
       <section className="hero">
-        <div className="hero-bg">
-          <div className="hero-sky" aria-hidden="true">
-            <span className="sky-cloud c1" />
-            <span className="sky-cloud c2" />
-            <span className="sky-cloud c3" />
-            <span className="sky-cloud c4" />
-            <span className="sky-cloud c5" />
-          </div>
-          <Img src={IMG.heroField} alt="Farm field" />
+        <div className="hero-bg" data-parallax-speed="0.35">
+          <Img src="/images/LandingBackground.jpg" alt={t("hero.altField")} />
         </div>
-        {[8, 22, 47, 68, 88].map((l, i) => (
-          <Leaf key={i} className="fall" size={18 + (i % 3) * 6} style={{ left: l + "%", animationDelay: i * 2.2 + "s", animationDuration: 11 + i * 2 + "s" }} />
+        {[18, 52, 78].map((l, i) => (
+          <Leaf key={i} className="fall" size={16 + (i % 2) * 6} style={{ left: l + "%", animationDelay: i * 3.2 + "s", animationDuration: 14 + i * 3 + "s" }} />
         ))}
         <div className="wrap hero-in">
-          <div className="hero-l">
-            <span className="script tag rise" style={{ "--d": "0s" }}>Support Local ♡</span>
+          <div className="hero-l" data-parallax-speed="0.06">
+            <span className="script tag rise" style={{ "--d": "0s" }}>{t("hero.tag")}</span>
             <h1 className="hero-h">
-              <span className="rise" style={{ "--d": ".1s" }}>Fresh From</span>
-              <span className="rise" style={{ "--d": ".22s" }}><em className="brush">The Farm</em> <Leaf className="h1leaf" size={34} /></span>
-              <span className="rise" style={{ "--d": ".34s" }}>Closer To <em className="you">You!</em></span>
+              <span className="rise" style={{ "--d": ".1s" }}>{t("hero.line1")}</span>
+              <span className="rise" style={{ "--d": ".22s" }}><em className="brush">{t("hero.line2Farm")}</em> <Leaf className="h1leaf" size={34} /></span>
+              <span className="rise" style={{ "--d": ".34s" }}>{t("hero.line3a")} <em className="you">{t("hero.line3You")}</em></span>
             </h1>
-            <p className="lead rise" style={{ "--d": ".46s" }}>Discover local farmers, explore nearby markets, and pre-order fresh produce — all in one place.</p>
+            <p className="lead rise" style={{ "--d": ".46s" }}>{t("hero.lead")}</p>
             <form className="bigsearch rise" style={{ "--d": ".58s" }} onSubmit={goSearch}>
               <MapPin size={18} />
               <input
-                placeholder="Search for markets, products, or farmers..."
+                placeholder={t("hero.searchPlaceholder")}
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                aria-label="Search products"
+                aria-label={t("hero.searchAria")}
               />
-              <button type="submit" className="circle shine" aria-label="Search"><ArrowRight size={18} /></button>
+              <button type="submit" className="circle shine" aria-label={t("common.search")}><ArrowRight size={18} /></button>
             </form>
             <div className="feats rise" style={{ "--d": ".7s" }}>
-              {[
-                { i: Sprout, t: "Local Farmers", s: "Direct from source" },
-                { i: ShoppingBasket, t: "Fresh Produce", s: "Seasonal & natural" },
-                { i: Truck, t: "Easy Pickup", s: "At your convenience" },
-              ].map((f) => (
-                <div className="feat" key={f.t}>
+              {perks.map((f) => (
+                <div className="feat" key={f.title}>
                   <div className="fic"><f.i size={20} /></div>
-                  <div><b>{f.t}</b><small>{f.s}</small></div>
+                  <div><b>{f.title}</b><small>{f.sub}</small></div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="hero-r">
+          <div className="hero-r" data-parallax-speed="-0.1">
             <div className="ring" />
             <div className="photo pop" style={{ "--d": ".2s" }}>
-              <Img src={IMG.heroFarmer} alt="Farmer with fresh vegetables" />
-              <span className="sticker">Real Farmers<br />Real Food ♡</span>
+              <Img src={IMG.heroFarmer} alt={t("hero.altFarmer")} />
+              <span className="sticker" style={{ whiteSpace: "pre-line" }}>{t("hero.sticker")}</span>
             </div>
-            <div className="crate-photo pop" style={{ "--d": ".5s" }}><Img src={IMG.crate} alt="Crate of vegetables" /></div>
-            <span className="script note">Good Food<br />Happy People ♡</span>
+            <div className="crate-photo pop" style={{ "--d": ".5s" }}><Img src={IMG.crate} alt={t("hero.altCrate")} /></div>
+            <span className="script note" style={{ whiteSpace: "pre-line" }}>{t("hero.note")}</span>
             <div className="fcards">
-              <div className="fcard float" style={{ "--d": "0s" }}><div className="fcic"><Leaf size={18} /></div><div><b>Fresh Stock Available</b><small>Organic • Seasonal • Local</small></div></div>
-              <div className="fcard float" style={{ "--d": "1.2s" }}><div className="fcic"><MapPin size={18} /></div><div><b>Markets Near You</b><small>Find your nearest market</small></div></div>
-              <div className="fcard float" style={{ "--d": "2.4s" }}><div className="fcic photo-ic"><Img src={IMG.basket} alt="Fresh produce" /></div><div><b>Seasonal Picks</b><strong>Fresh today</strong></div></div>
+              <div className="fcard float" style={{ "--d": "0s" }}><div className="fcic"><Leaf size={18} /></div><div><b>{t("hero.cardStock")}</b><small>{t("hero.cardStockSub")}</small></div></div>
+              <div className="fcard float" style={{ "--d": "1.2s" }}><div className="fcic"><MapPin size={18} /></div><div><b>{t("hero.cardMarkets")}</b><small>{t("hero.cardMarketsSub")}</small></div></div>
+              <div className="fcard float" style={{ "--d": "2.4s" }}><div className="fcic photo-ic"><Img src={IMG.basket} alt={t("hero.altBasket")} /></div><div><b>{t("hero.cardPicks")}</b><strong>{t("hero.cardPicksSub")}</strong></div></div>
             </div>
           </div>
         </div>

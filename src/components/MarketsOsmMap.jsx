@@ -4,6 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import { googleDirectionsUrl, osmDirectionsUrl, hasCoords } from '../lib/api/geo';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -12,8 +13,42 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow,
 });
 
-/** OpenStreetMap map of markets using DB latitude/longitude. */
-export default function MarketsOsmMap({ markets = [], selectedId = null, onSelect, height = 420 }) {
+const farmerIcon = L.divIcon({
+  className: 'ml-farmer-pin',
+  html: '<span class="ml-farmer-pin-dot" title="Farmer"></span>',
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+  popupAnchor: [0, -8],
+});
+
+function escapeHtml(s) {
+  return String(s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function directionsLinksHtml(lat, lng) {
+  const g = googleDirectionsUrl(lat, lng);
+  const o = osmDirectionsUrl(lat, lng);
+  if (!g && !o) return '';
+  const parts = [];
+  if (g) parts.push(`<a href="${g}" target="_blank" rel="noopener noreferrer">Google Directions</a>`);
+  if (o) parts.push(`<a href="${o}" target="_blank" rel="noopener noreferrer">OSM</a>`);
+  return `<br/>${parts.join(' · ')}`;
+}
+
+/**
+ * OpenStreetMap map of markets (+ optional farmer pins) using DB latitude/longitude.
+ */
+export default function MarketsOsmMap({
+  markets = [],
+  farmers = [],
+  selectedId = null,
+  onSelect,
+  height = 420,
+}) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
@@ -21,18 +56,19 @@ export default function MarketsOsmMap({ markets = [], selectedId = null, onSelec
   onSelectRef.current = onSelect;
 
   const withCoords = useMemo(
-    () =>
-      (markets || []).filter(
-        (m) =>
-          m.latitude != null &&
-          m.longitude != null &&
-          !Number.isNaN(Number(m.latitude)) &&
-          !Number.isNaN(Number(m.longitude))
-      ),
+    () => (markets || []).filter((m) => hasCoords(m.latitude, m.longitude)),
     [markets]
   );
 
-  const coordKey = withCoords.map((m) => `${m.market_id}:${m.latitude}:${m.longitude}`).join('|');
+  const farmersWithCoords = useMemo(
+    () => (farmers || []).filter((f) => hasCoords(f.latitude, f.longitude)),
+    [farmers]
+  );
+
+  const coordKey = [
+    withCoords.map((m) => `${m.market_id}:${m.latitude}:${m.longitude}`).join('|'),
+    farmersWithCoords.map((f) => `${f.user_id || f.id}:${f.latitude}:${f.longitude}`).join('|'),
+  ].join('||');
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return undefined;
@@ -59,7 +95,7 @@ export default function MarketsOsmMap({ markets = [], selectedId = null, onSelec
     markersRef.current.forEach((mk) => mk.remove());
     markersRef.current = [];
 
-    if (!withCoords.length) {
+    if (!withCoords.length && !farmersWithCoords.length) {
       map.setView([31.5204, 74.3587], 11);
       return;
     }
@@ -70,9 +106,9 @@ export default function MarketsOsmMap({ markets = [], selectedId = null, onSelec
       const lng = Number(m.longitude);
       const marker = L.marker([lat, lng], { title: m.market_name });
       marker.bindPopup(
-        `<strong>${m.market_name || 'Market'}</strong><br/>${m.address || 'Address TBD'}${
-          m.timings ? `<br/>${m.timings}` : ''
-        }`
+        `<strong>${escapeHtml(m.market_name || 'Market')}</strong><br/>${escapeHtml(m.address || 'Address TBD')}${
+          m.timings ? `<br/>${escapeHtml(m.timings)}` : ''
+        }${directionsLinksHtml(lat, lng)}`
       );
       marker.on('click', () => onSelectRef.current?.(m));
       marker.addTo(map);
@@ -80,13 +116,28 @@ export default function MarketsOsmMap({ markets = [], selectedId = null, onSelec
       bounds.extend([lat, lng]);
     });
 
-    if (withCoords.length === 1) {
-      map.setView([Number(withCoords[0].latitude), Number(withCoords[0].longitude)], 13);
+    farmersWithCoords.forEach((f) => {
+      const lat = Number(f.latitude);
+      const lng = Number(f.longitude);
+      const label = f.stall_name || f.profiles?.full_name || 'Farmer';
+      const marker = L.marker([lat, lng], { title: label, icon: farmerIcon });
+      marker.bindPopup(
+        `<strong>${escapeHtml(label)}</strong><br/><span>Farmer stall</span>${directionsLinksHtml(lat, lng)}`
+      );
+      marker.addTo(map);
+      markersRef.current.push(marker);
+      bounds.extend([lat, lng]);
+    });
+
+    const total = withCoords.length + farmersWithCoords.length;
+    if (total === 1) {
+      const only = withCoords[0] || farmersWithCoords[0];
+      map.setView([Number(only.latitude), Number(only.longitude)], 13);
     } else {
       map.fitBounds(bounds.pad(0.2));
     }
     setTimeout(() => map.invalidateSize(), 80);
-  }, [coordKey, withCoords]);
+  }, [coordKey, withCoords, farmersWithCoords]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -100,7 +151,7 @@ export default function MarketsOsmMap({ markets = [], selectedId = null, onSelec
   return (
     <div className="osm-map-wrap" style={{ minHeight: height }}>
       <div ref={containerRef} className="osm-map" style={{ minHeight: height }} aria-label="Markets map" />
-      {!withCoords.length && (
+      {!withCoords.length && !farmersWithCoords.length && (
         <div className="osm-map-empty">
           <p>
             <b>Location pending</b>

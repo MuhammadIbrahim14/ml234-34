@@ -65,10 +65,43 @@ export function CartProvider({ children }) {
       setItems([]);
     }
 
+    /** Merge products into cart (Order again). Each entry needs product_id + quantity. */
+    function preloadItems(list = []) {
+      setItems((prev) => {
+        let next = [...prev];
+        for (const product of list || []) {
+          if (!product?.product_id) continue;
+          const quantity = Math.max(1, Number(product.quantity ?? product.qty) || 1);
+          const id = product.product_id;
+          const existing = next.find((x) => x.product_id === id);
+          if (existing) {
+            next = next.map((x) =>
+              x.product_id === id ? { ...x, quantity: x.quantity + quantity } : x
+            );
+          } else {
+            next = [
+              ...next,
+              {
+                product_id: id,
+                farmer_id: product.farmer_id,
+                name: product.name,
+                price: Number(product.price),
+                unit: product.unit || 'kg',
+                farmer_name: product.farmer_name || 'Local farmer',
+                image_url: product.image_url || null,
+                quantity,
+              },
+            ];
+          }
+        }
+        return next;
+      });
+    }
+
     const count = items.reduce((s, x) => s + x.quantity, 0);
     const total = items.reduce((s, x) => s + x.price * x.quantity, 0);
 
-    return { items, addItem, removeItem, updateQty, clear, count, total };
+    return { items, addItem, removeItem, updateQty, clear, preloadItems, count, total };
   }, [items]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

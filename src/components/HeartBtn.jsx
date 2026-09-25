@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Heart } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { isProductFavorited, isFarmerFavorited, toggleProductFavorite, toggleFarmerFavorite } from '../lib/api/favorites';
 import { navigate } from '../router';
 
 export default function HeartBtn({ productId = null, farmerId = null }) {
+  const { t } = useTranslation();
   const { user, isAuthenticated, isConfigured } = useAuth();
   const [on, setOn] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -52,7 +54,7 @@ export default function HeartBtn({ productId = null, farmerId = null }) {
       type="button"
       disabled={busy}
       onClick={onClick}
-      aria-label="Save to favourites"
+      aria-label={t('a11y.saveFavourite')}
     >
       <Heart size={15} fill={on ? 'currentColor' : 'none'} />
     </button>

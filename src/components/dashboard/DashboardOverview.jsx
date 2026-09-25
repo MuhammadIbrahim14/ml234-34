@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { navigate } from '../../router';
 import { useAuth } from '../../context/AuthContext';
 import { getDashboardCounts } from '../../lib/api/admin';
@@ -6,6 +7,7 @@ import { listOrdersForFarmer, orderStats } from '../../lib/api/orders';
 import { listProducts } from '../../lib/api/products';
 import { listAnnouncements } from '../../lib/api/announcements';
 import { DemoModeNotice, LoadingBlock, ErrorBanner, EmptyState } from '../ui/DataState';
+import { DataView, DataViewToolbar, DataCard, useDataViewMode } from '../ui/DataView';
 import {
   LayoutDashboard, Package, ShoppingBag, Users, Store, ClipboardList,
   BarChart3, Megaphone, CalendarDays, Clock3, TrendingUp, Plus
@@ -25,34 +27,37 @@ function IconStat({ kind }) {
   return <C size={19} />;
 }
 
-function quick(role) {
+function quick(role, t) {
   const map = {
     farmer: [
-      ['Add Product', 'List fresh stock', '/dashboard/farmer/add-product', Plus],
-      ['Orders', 'Manage pre-orders', '/dashboard/farmer/pre-orders', ClipboardList],
-      ['Insights', 'View performance', '/dashboard/farmer/sales-insights', BarChart3],
-      ['Markets', 'Manage locations', '/dashboard/farmer/markets', Store],
+      [t('dash.farmer.qaAddProduct'), t('dash.farmer.qaAddProductSub'), '/dashboard/farmer/add-product', Plus],
+      [t('dash.farmer.qaOrders'), t('dash.farmer.qaOrdersSub'), '/dashboard/farmer/pre-orders', ClipboardList],
+      [t('dash.farmer.qaInsights'), t('dash.farmer.qaInsightsSub'), '/dashboard/farmer/sales-insights', BarChart3],
+      [t('dash.farmer.qaMarkets'), t('dash.farmer.qaMarketsSub'), '/dashboard/farmer/markets', Store],
     ],
     admin: [
-      ['Manage Farmers', 'Review accounts', '/dashboard/admin/farmers', Users],
-      ['Manage Markets', 'Edit markets', '/dashboard/admin/markets', Store],
-      ['Reports', 'Open analytics', '/dashboard/admin/reports', BarChart3],
-      ['Announcements', 'Publish updates', '/dashboard/admin/announcements', Megaphone],
+      [t('dash.admin.qaManageFarmers'), t('dash.admin.qaManageFarmersSub'), '/dashboard/admin/farmers', Users],
+      [t('dash.admin.qaManageMarkets'), t('dash.admin.qaManageMarketsSub'), '/dashboard/admin/markets', Store],
+      [t('dash.admin.qaReports'), t('dash.admin.qaReportsSub'), '/dashboard/admin/reports', BarChart3],
+      [t('dash.admin.qaAnnouncements'), t('dash.admin.qaAnnouncementsSub'), '/dashboard/admin/announcements', Megaphone],
     ],
     manager: [
-      ['Orders', 'Review orders', '/dashboard/manager/orders', ShoppingBag],
-      ['Inventory', 'Manage stock', '/dashboard/manager/inventory', Package],
-      ['Pickup Slots', 'Set windows', '/dashboard/manager/pickup-slots', CalendarDays],
-      ['Reports', 'Open analytics', '/dashboard/manager/reports', BarChart3],
+      [t('dash.admin.qaOrders'), t('dash.admin.qaOrdersSub'), '/dashboard/manager/orders', ShoppingBag],
+      [t('dash.admin.qaInventory'), t('dash.admin.qaInventorySub'), '/dashboard/manager/inventory', Package],
+      [t('dash.admin.qaPickupSlots'), t('dash.admin.qaPickupSlotsSub'), '/dashboard/manager/pickup-slots', CalendarDays],
+      [t('dash.admin.qaReports'), t('dash.admin.qaReportsSub'), '/dashboard/manager/reports', BarChart3],
     ],
   };
-  return (map[role] || map.farmer).map(([t, s, p, i]) => ({ t, s, p, i }));
+  return (map[role] || map.farmer).map(([title, sub, p, i]) => ({ t: title, s: sub, p, i }));
 }
 
 export default function DashboardOverview({ role }) {
+  const { t } = useTranslation();
   const { profile, user, isConfigured } = useAuth();
+  const { mode: bestsellersView, setMode: setBestsellersView } = useDataViewMode('dash-bestsellers');
   const [cards, setCards] = useState([]);
   const [activity, setActivity] = useState([]);
+  const [bestsellers, setBestsellers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -63,6 +68,7 @@ export default function DashboardOverview({ role }) {
       if (!isConfigured) {
         setCards([]);
         setActivity([]);
+        setBestsellers([]);
         setLoading(false);
         return;
       }
@@ -74,14 +80,15 @@ export default function DashboardOverview({ role }) {
         if (cancelled) return;
         const stats = orderStats(ordersRes.data || []);
         setCards([
-          ['Total Orders', String(stats.total), 'Shopping'],
-          ['Pending Orders', String(stats.pending), 'Clock'],
-          ['Revenue', `Rs ${stats.revenue.toLocaleString()}`, 'Trend'],
-          ['Products', String((productsRes.data || []).length), 'Package'],
+          ['totalOrders', String(stats.total), 'Shopping'],
+          ['pendingOrders', String(stats.pending), 'Clock'],
+          ['revenue', `Rs ${stats.revenue.toLocaleString()}`, 'Trend'],
+          ['products', String((productsRes.data || []).length), 'Package'],
         ]);
+        setBestsellers(stats.bestsellers || []);
         setActivity(
           (ordersRes.data || []).slice(0, 4).map((o) => ({
-            text: `Order #${o.order_id} — ${o.products?.name || 'Product'} (${o.order_status})`,
+            text: `Order #${o.order_id} — ${o.products?.name || t('dash.product')} (${o.order_status})`,
             when: o.order_date ? new Date(o.order_date).toLocaleString() : '',
           }))
         );
@@ -91,11 +98,12 @@ export default function DashboardOverview({ role }) {
         if (cancelled) return;
         const c = countsRes.data || {};
         setCards([
-          ['Farmers', String(c.farmers || 0), 'Users'],
-          ['Customers', String(c.customers || 0), 'Users'],
-          ['Markets', String(c.markets || 0), 'Store'],
-          ['Orders', String(c.orders || 0), 'Shopping'],
+          ['farmers', String(c.farmers || 0), 'Users'],
+          ['customers', String(c.customers || 0), 'Users'],
+          ['markets', String(c.markets || 0), 'Store'],
+          ['orders', String(c.orders || 0), 'Shopping'],
         ]);
+        setBestsellers([]);
         setActivity(
           (annRes.data || []).slice(0, 4).map((a) => ({
             text: a.title,
@@ -110,25 +118,43 @@ export default function DashboardOverview({ role }) {
     return () => {
       cancelled = true;
     };
-  }, [role, user?.id, isConfigured]);
+  }, [role, user?.id, isConfigured, t]);
 
-  const greetName = profile?.full_name || (role === 'admin' ? 'MarketLink Admin' : 'there');
+  const greetName =
+    profile?.full_name || (role === 'admin' ? t('dash.adminName') : 'there');
+  const displayGreet = t('dash.farmer.greet', { name: greetName });
+
+  const cardLabel = (key) => {
+    const farmerMap = {
+      totalOrders: t('dash.farmer.statTotalOrders'),
+      pendingOrders: t('dash.farmer.statPendingOrders'),
+      revenue: t('dash.farmer.statRevenue'),
+      products: t('dash.farmer.statProducts'),
+    };
+    const adminMap = {
+      farmers: t('dash.admin.statFarmers'),
+      customers: t('dash.admin.statCustomers'),
+      markets: t('dash.admin.statMarkets'),
+      orders: t('dash.admin.statOrders'),
+    };
+    return farmerMap[key] || adminMap[key] || key;
+  };
 
   return (
     <>
       <section className="dash-hero">
         <div>
-          <span className="eyebrow">Good day, {greetName}</span>
-          <h1>Everything you need, in one place.</h1>
-          <p>Manage markets, fresh produce, orders and community activity with a smooth MarketLink workspace.</p>
+          <span className="eyebrow">{displayGreet}</span>
+          <h1>{t('dash.farmer.heroTitle')}</h1>
+          <p>{t('dash.farmer.heroLead')}</p>
         </div>
         <div className="dash-hero-art">
-          <img src="https://images.unsplash.com/photo-1499529112087-3cb3b73cec95?auto=format&fit=crop&w=900&q=85" alt="Fresh vegetables on a farm table" />
+          <img src="https://images.unsplash.com/photo-1499529112087-3cb3b73cec95?auto=format&fit=crop&w=900&q=85" alt={t('dash.farmer.heroAlt')} />
         </div>
       </section>
       {!isConfigured && <DemoModeNotice />}
       {loading ? (
-        <LoadingBlock label="Loading overview…" />
+        <LoadingBlock label={t('dash.farmer.loadingOverview')} />
       ) : (
         <>
           <ErrorBanner message={error} />
@@ -139,9 +165,9 @@ export default function DashboardOverview({ role }) {
                   <span>
                     <IconStat kind={kind} />
                   </span>
-                  <small>{label}</small>
+                  <small>{cardLabel(label)}</small>
                   <strong>{val}</strong>
-                  <em>Live data</em>
+                  <em>{t('dash.liveData')}</em>
                 </div>
               ))}
             </div>
@@ -150,22 +176,22 @@ export default function DashboardOverview({ role }) {
             <section className="dash-panel">
               <div className="panel-title">
                 <div>
-                  <span className="eyebrow">Activity</span>
-                  <h3>Recent activity</h3>
+                  <span className="eyebrow">{t('dash.farmer.activityEyebrow')}</span>
+                  <h3>{t('dash.farmer.recentActivity')}</h3>
                 </div>
                 <button type="button" onClick={() => navigate('/dashboard/' + role + '/orders')}>
-                  View all
+                  {t('dash.farmer.viewAll')}
                 </button>
               </div>
               {!activity.length ? (
-                <EmptyState title="No activity yet" message="Live orders and announcements will show up here." />
+                <EmptyState title={t('dash.farmer.noActivity')} message={t('dash.farmer.noActivityMsg')} />
               ) : (
                 activity.map((x, i) => (
                   <div className="activity" key={x.text + i}>
                     <span className={'activity-dot d' + (i % 4)} />
                     <div>
                       <b>{x.text}</b>
-                      <small>{x.when || 'Recently'}</small>
+                      <small>{x.when || t('dash.farmer.recently')}</small>
                     </div>
                     <span className="activity-arrow">›</span>
                   </div>
@@ -175,12 +201,12 @@ export default function DashboardOverview({ role }) {
             <section className="dash-panel">
               <div className="panel-title">
                 <div>
-                  <span className="eyebrow">Quick actions</span>
-                  <h3>What do you want to do?</h3>
+                  <span className="eyebrow">{t('dash.farmer.quickEyebrow')}</span>
+                  <h3>{t('dash.farmer.quickTitle')}</h3>
                 </div>
               </div>
               <div className="quick-grid">
-                {quick(role).map((q) => (
+                {quick(role, t).map((q) => (
                   <button key={q.t} type="button" onClick={() => navigate(q.p)}>
                     <q.i size={20} />
                     <b>{q.t}</b>
@@ -190,6 +216,40 @@ export default function DashboardOverview({ role }) {
               </div>
             </section>
           </div>
+          {role === 'farmer' && (
+            <section className="dash-panel" style={{ marginTop: 16 }}>
+              <div className="panel-title">
+                <div>
+                  <span className="eyebrow">{t('dash.farmer.bestsellers')}</span>
+                  <h3>{t('dash.farmer.topProducts')}</h3>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                  {bestsellers.length > 0 && (
+                    <DataViewToolbar mode={bestsellersView} onChange={setBestsellersView} />
+                  )}
+                  <button type="button" onClick={() => navigate('/dashboard/farmer/sales-insights')}>
+                    {t('dash.farmer.fullInsights')}
+                  </button>
+                </div>
+              </div>
+              {!bestsellers.length ? (
+                <EmptyState title={t('dash.farmer.noSales')} message={t('dash.farmer.noSalesMsg')} />
+              ) : (
+                <DataView mode={bestsellersView}>
+                  {bestsellers.map((b) => (
+                    <DataCard
+                      key={b.product_id}
+                      title={b.name}
+                      details={[
+                        { label: t('dash.colSold'), value: String(b.qty) },
+                        { label: t('dash.colRevenue'), value: `Rs ${Number(b.revenue).toLocaleString()}` },
+                      ]}
+                    />
+                  ))}
+                </DataView>
+              )}
+            </section>
+          )}
         </>
       )}
     </>
