@@ -1,6 +1,6 @@
 import { navigate } from "../../router";
 import { Leaf, Search, MapPin, Truck, Sprout, ArrowRight, ShoppingBasket } from "lucide-react";
-import { IMG, PRODUCTS } from "../../data/data";
+import { IMG } from "../../data/data";
 import Img from "../../components/Img";
 
 export default function Hero() {
@@ -48,8 +48,8 @@ export default function Hero() {
             <span className="script note">Good Food<br />Happy People ♡</span>
             <div className="fcards">
               <div className="fcard float" style={{ "--d": "0s" }}><div className="fcic"><Leaf size={18} /></div><div><b>Fresh Stock Available</b><small>Organic • Seasonal • Local</small></div></div>
-              <div className="fcard float" style={{ "--d": "1.2s" }}><div className="fcic"><MapPin size={18} /></div><div><b>12 Markets Near You</b><small>Find your nearest market</small></div></div>
-              <div className="fcard float" style={{ "--d": "2.4s" }}><div className="fcic photo-ic"><Img src={PRODUCTS[0].img} alt="Tomatoes" /></div><div><b>Tomatoes</b><strong>Rs. 120/kg</strong></div></div>
+              <div className="fcard float" style={{ "--d": "1.2s" }}><div className="fcic"><MapPin size={18} /></div><div><b>Markets Near You</b><small>Find your nearest market</small></div></div>
+              <div className="fcard float" style={{ "--d": "2.4s" }}><div className="fcic photo-ic"><Img src={IMG.basket} alt="Fresh produce" /></div><div><b>Seasonal Picks</b><strong>Fresh today</strong></div></div>
             </div>
           </div>
         </div>

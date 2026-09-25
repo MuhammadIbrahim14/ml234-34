@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { supabase, isSupabaseConfigured, isValidRole, ROLES, dashboardPathForRole } from '../lib/supabase';
+import { supabase, isSupabaseConfigured, isValidRole, ROLES, dashboardPathForRole, hasDashboard } from '../lib/supabase';
 
 const AuthContext = createContext(null);
 const DEMO_KEY = 'ml-demo-session';
@@ -182,14 +182,35 @@ export function AuthProvider({ children }) {
       setProfile(null);
     }
 
+    async function resetPassword(email) {
+      setAuthError('');
+      if (!email?.trim()) {
+        setAuthError('Enter your email address to reset your password.');
+        return { ok: false };
+      }
+      if (!isSupabaseConfigured || !supabase) {
+        setAuthError('Password reset needs live Supabase auth. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
+        return { ok: false };
+      }
+      const redirectTo = `${import.meta.env.VITE_SITE_URL || window.location.origin}/login`;
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo });
+      if (error) {
+        setAuthError(error.message);
+        return { ok: false, error: error.message };
+      }
+      return { ok: true };
+    }
+
     function hasRole(...allowed) {
       if (!role) return false;
       return allowed.includes(role);
     }
 
     function canAccessDashboard(dashRole) {
-      if (!role || !isValidRole(dashRole)) return false;
-      if (role === ROLES.ADMIN) return true; // admin may open any portal for support
+      // Customer has no dashboard — shopping is on the public website
+      if (!role || !isValidRole(dashRole) || !hasDashboard(dashRole)) return false;
+      if (role === ROLES.CUSTOMER) return false;
+      if (role === ROLES.ADMIN) return true; // admin may open farmer/admin/manager portals
       return role === dashRole;
     }
 
@@ -206,6 +227,7 @@ export function AuthProvider({ children }) {
       signUp,
       signIn,
       signOut,
+      resetPassword,
       hasRole,
       canAccessDashboard,
       dashboardPath: role ? dashboardPathForRole(role) : '/login',

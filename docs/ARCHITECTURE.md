@@ -36,7 +36,7 @@ Public marketing pages work without a session. Dashboards require authentication
 | `src/lib/supabase.js` | Client factory, role constants, config detection |
 | `src/components/RoleGuard.jsx` | Dashboard access gate |
 | `src/components/Auth.jsx` | Login / register UI wired to auth |
-| `src/components/Dashboard.jsx` | Role workspaces (customer, farmer, admin, manager) |
+| `src/components/Dashboard.jsx` | Role workspaces (farmer, admin, manager) |
 | `src/components/SitePages.jsx` | Markets, products, farmers, about, contact, cart |
 | `src/components/sections/*` | Home page sections (unchanged visually) |
 | `src/data/data.js` | Sample catalog data until DB wiring |
@@ -53,7 +53,7 @@ Routing is lightweight (no React Router dependency): pathnames like `/`, `/marke
 | Role | Audience | Default entry |
 |------|----------|---------------|
 | Visitor | Anyone | Public site |
-| `customer` | Shoppers | `/dashboard/customer` |
+| `customer` | Shoppers | Public site (`/`, `/products`, `/cart`) — no dashboard |
 | `farmer` | Stall owners | `/dashboard/farmer` |
 | `admin` | Platform operators | `/dashboard/admin` |
 | `manager` | Future market ops (extension) | `/dashboard/manager` |

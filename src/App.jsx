@@ -16,13 +16,23 @@ import Dashboard from './components/Dashboard';
 import Auth from './components/Auth';
 import RoleGuard from './components/RoleGuard';
 import SplashScreen from './components/SplashScreen';
-import { MarketsPage, ProductsPage, FarmersPage, AboutPage, ContactPage, CartPage } from './components/SitePages';
+import {
+  MarketsPage,
+  ProductsPage,
+  FarmersPage,
+  AboutPage,
+  ContactPage,
+  CartPage,
+  OrdersPage,
+  FavoritesPage,
+} from './components/SitePages';
 import { getRoute } from './router';
+import { useCart } from './context/CartContext';
 import './styles/marketlink.css';
 
 export default function App() {
   const [dark, setDark] = useState(() => localStorage.getItem('ml-theme') === 'dark');
-  const [cart, setCart] = useState(3);
+  const { count: cart } = useCart();
   const [toast, setToast] = useState('');
   const [route, setRoute] = useState(getRoute());
   useReveal();
@@ -35,9 +45,8 @@ export default function App() {
     localStorage.setItem('ml-theme', dark ? 'dark' : 'light');
   }, [dark]);
   const setTheme = (v) => setDark(typeof v === 'boolean' ? v : !dark);
-  const addToCart = (name) => {
-    setCart((c) => c + 1);
-    setToast(name + ' added to cart');
+  const showToast = (msg) => {
+    setToast(msg);
     clearTimeout(window.__mlToast);
     window.__mlToast = setTimeout(() => setToast(''), 2200);
   };
@@ -74,18 +83,26 @@ export default function App() {
     '/about': <AboutPage />,
     '/contact': <ContactPage />,
     '/cart': <CartPage />,
+    '/orders': <OrdersPage />,
+    '/favorites': <FavoritesPage />,
   };
   const page = pageMap[route];
   return shell(
     <>
-      <div className="aurora"><i /><i /><i /></div>
+      <div className="aurora">
+        <i />
+        <i />
+        <i />
+      </div>
       <Navbar active={route} setTheme={setTheme} dark={dark} cart={cart} />
-      {page ? page : (
+      {page ? (
+        page
+      ) : (
         <>
           <Hero />
           <Ticker />
           <ExploreMap />
-          <FreshPicks addToCart={addToCart} />
+          <FreshPicks onToast={showToast} />
           <Farmers />
           <HowItWorks />
           <DashboardBand />

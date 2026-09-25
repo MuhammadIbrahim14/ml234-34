@@ -14,7 +14,7 @@ export default function Footer({ dark, setTheme }) {
             </div>
           </div>
           <div className="fcol"><b>Quick Links</b>{["Home", "Markets", "Farmers", "How It Works", "About Us"].map((l) => <a key={l} onClick={() => navigate(({"Home":"/","Markets":"/markets","Farmers":"/farmers","How It Works":"/#how-it-works","About Us":"/about"}[l] || "/"))}>{l}</a>)}</div>
-          <div className="fcol"><b>Customer Support</b>{["Help Center", "Contact Us", "FAQs", "Track Order"].map((l) => <a key={l} onClick={() => navigate(({"Help Center":"/contact","Contact Us":"/contact","FAQs":"/contact","Track Order":"/dashboard/customer/orders"}[l] || "/contact"))}>{l}</a>)}</div>
+          <div className="fcol"><b>Customer Support</b>{["Help Center", "Contact Us", "FAQs", "Track Order"].map((l) => <a key={l} onClick={() => navigate(({"Help Center":"/contact","Contact Us":"/contact","FAQs":"/contact","Track Order":"/orders"}[l] || "/contact"))}>{l}</a>)}</div>
           <div className="fcol"><b>For Farmers</b>{["Farmer Registration", "Seller Guidelines", "Resources", "Support"].map((l) => <a key={l} onClick={() => navigate(({"Farmer Registration":"/register","Seller Guidelines":"/about","Resources":"/about","Support":"/contact"}[l] || "/register"))}>{l}</a>)}</div>
           <div className="fcol news">
             <b>Stay Updated</b>

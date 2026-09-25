@@ -1,8 +1,8 @@
 # MarketLink — SRS Alignment & Gap Analysis
 
-**Document date:** 25 September 2026  
+**Document date:** 25 September 2026 (CRUD roadmap landed)  
 **SRS source:** `MarketLink End-to-End Web Solutions_SRS.pdf` (Version 1.0, Theme: eGreen Basket)  
-**Codebase reviewed:** React + Vite frontend under `src/`
+**Codebase reviewed:** React + Vite frontend under `src/` + Supabase schema/migrations
 
 This document maps Software Requirements Specification (SRS) expectations to the current UI and backend readiness. It does **not** redesign the UI; it records alignment and gaps for delivery planning.
 
@@ -23,13 +23,13 @@ MarketLink connects local farmers-market farmers with customers so that:
 
 | Area | Status |
 |------|--------|
-| Marketing / visitor website (home, markets, products, farmers, about, contact, cart) | **Implemented (UI + sample data)** |
+| Marketing / visitor website (home, markets, products, farmers, about, contact, cart, orders, favorites) | **Live against Supabase when env set; empty states + demo notice otherwise** |
 | Light / dark theme, responsive layout | **Implemented** |
-| Login / Register screens | **Implemented (now wired to Supabase Auth + demo fallback)** |
-| Customer / Farmer / Admin / Manager dashboards | **UI shells implemented; live CRUD against DB still pending** |
-| Supabase schema + RLS + auth profiles | **Configured (migrations ready to run)** |
+| Login / Register screens | **Wired to Supabase Auth + demo fallback** |
+| Farmer / Admin / Manager dashboards | **CRUD sections wired (products, markets, categories, farmers, customers, orders, reviews, announcements, reports)** |
+| Supabase schema + RLS + auth profiles | **Configured (`001` + `002_public_catalog_reads`)** |
 | Netlify SPA deploy | **Configured (`netlify.toml`, `public/_redirects`)** |
-| Real map (Google Maps / OSM), payments, AI chatbot | **Not in scope of current backend wiring / still gaps** |
+| Real map (Google Maps / OSM), payments, AI chatbot | **Still gaps** |
 
 ---
 
@@ -38,12 +38,12 @@ MarketLink connects local farmers-market farmers with customers so that:
 | Role | In SRS? | In UI? | Auth readiness |
 |------|---------|--------|----------------|
 | Visitor (unauthenticated) | Implied | Yes — public pages | Yes |
-| Customer | Yes | Yes — `/dashboard/customer` | Register/login + `RoleGuard` |
-| Farmer | Yes | Yes — `/dashboard/farmer` | Register as farmer + pending approval field in DB |
-| Admin | Yes | Yes — `/dashboard/admin` | Promote via SQL after signup (see Setup) |
-| Manager | **No (extension)** | Yes — `/dashboard/manager` | Enum + guard reserved for future |
+| Customer | Yes | Public website shop (no dashboard) | Register/login → home/products/cart/orders/favorites |
+| Farmer | Yes | Yes — `/dashboard/farmer` | Register as farmer + admin approval |
+| Admin | Yes | Yes — `/dashboard/admin` | Promote via SQL after signup |
+| Manager | **No (extension)** | Yes — `/dashboard/manager` | Enum + guard reserved |
 
-Role-based access: `src/context/AuthContext.jsx` + `src/components/RoleGuard.jsx`. Admins may open any dashboard for support; other roles are restricted to their own portal.
+> **Product decision:** Customer dashboard removed by design. Customers shop on the public site (`/cart`, `/orders`, `/favorites`).
 
 ---
 
@@ -51,17 +51,16 @@ Role-based access: `src/context/AuthContext.jsx` + `src/components/RoleGuard.jsx
 
 | Requirement | UI present? | Backend / data | Gap notes |
 |-------------|-------------|----------------|-----------|
-| Register / login with name, contact, email, address | Yes | Supabase Auth + `profiles` | Confirm email flow depends on Supabase project settings |
-| Customer dashboard | Yes (sections) | Session + profile name | Section panels still frontend preview |
-| Browse markets & farmers | Yes (`/markets`, `/farmers`, home map UI) | Sample data in `src/data/data.js` | Persist markets/farmers from DB; real geolocation |
-| Embedded map + directions | Stylized map UI | — | Integrate Google Maps or OpenStreetMap |
-| Search / filter products | Partial (search on products page) | Sample products | Full filters: price, category, market, day |
-| Cart + pre-order + pickup slot | Cart page + dashboard Orders UI | `orders` table ready | Wire cart → order insert; pickup slots |
-| Order status / modify / cancel | Dashboard labels | Schema supports statuses | Implement mutations + cut-off rules |
-| Order history & reorder | Dashboard | Schema ready | Wire queries |
-| Favorites (farmers/products) | Heart UI + Favorites section | `favorites` table | Wire toggle + list |
-| Reviews & ratings | Dashboard Reviews section | `reviews` table | Wire after completed orders |
-| AI assistant (optional) | No | — | Optional per SRS |
+| Register / login | Yes | Supabase Auth + `profiles` | Email confirm depends on project settings |
+| Customer dashboard | **Removed** | — | Use public site |
+| Forgot password | Yes | `resetPasswordForEmail` | Needs live Supabase templates |
+| Browse markets & farmers | Yes | Live `markets` / approved `farmer_profiles` | OSM/Google map still decorative SVG |
+| Search / filter products | Yes | Live `products` + category/market filters | — |
+| Cart + pre-order + pickup slot | Yes | `orders` insert (one row per line) | Default slots if farmer windows empty |
+| Order status / cancel | Yes `/orders` | Cancel when `placed` | — |
+| Favorites | Yes `/favorites` + heart | `favorites` table | — |
+| Reviews after completed | Yes on `/orders` | `reviews` insert | — |
+| AI assistant | No | — | Optional |
 | Notifications | Bell UI | — | Email/in-app later |
 
 ---
@@ -70,14 +69,13 @@ Role-based access: `src/context/AuthContext.jsx` + `src/components/RoleGuard.jsx
 
 | Requirement | UI present? | Backend / data | Gap notes |
 |-------------|-------------|----------------|-----------|
-| Farmer registration (stall, contact, email, address) | Yes | Auth metadata + `farmer_profiles` | Admin approval (`approved` / `status`) |
-| Profile: markets, days, pickup windows, map pin | Dashboard Profile/Markets UI | Columns in schema | Forms → update `farmer_profiles` |
-| CRUD weekly stock & pricing | Products / Add Product UI | `products` table | Wire create/update/delete |
-| Sold out / unavailable | Preview controls | `is_available` | Wire toggle |
-| Manage pre-orders (accept/decline/ready) | Pre-Orders UI | `orders.order_status` | Wire status updates |
-| Cut-off times & pickup slots | UI mentions | `pickup_windows` jsonb | Full UX still preview |
-| Sales insights (totals, pending, revenue) | Stats cards (sample numbers) | Aggregate queries | Replace sample with SQL aggregates |
-| Respond to reviews | Reviews section | `farmer_response` | Wire update |
+| Farmer registration | Yes | Auth + `farmer_profiles` | Admin approve |
+| Profile (days, pickup windows, map) | Yes | `farmer_profiles` update | — |
+| CRUD stock & pricing | Yes | Full `products` fields | — |
+| Sold out / unavailable | Yes | `is_available` toggle | — |
+| Manage pre-orders | Yes | Status machine + stock decrement on **accept** | — |
+| Sales insights | Yes | Live order aggregates | — |
+| Respond to reviews | Yes | `farmer_response` | — |
 
 ---
 
@@ -85,54 +83,44 @@ Role-based access: `src/context/AuthContext.jsx` + `src/components/RoleGuard.jsx
 
 | Requirement | UI present? | Backend / data | Gap notes |
 |-------------|-------------|----------------|-----------|
-| Separate admin dashboard + metrics | Yes | Counts via queries TBD | Replace sample stats |
-| Approve / suspend farmers | Farmers section UI | `profiles.status`, `farmer_profiles.approved` | Wire actions |
-| Activate / deactivate customers | Customers section UI | `profiles.status` | Wire actions |
-| Manage markets | Markets section UI | `markets` table | Wire CRUD |
-| Content moderation | Moderation section UI | products / reviews | Soft-delete or remove flags |
-| Reports & analytics | Reports section UI | `reports` table | Generate real reports |
-| Categories & announcements | Announcements / Settings UI | `product_categories`, `announcements` | Wire publish |
+| Dashboard metrics | Yes | Count queries | — |
+| Approve / suspend farmers | Yes | `approved` + `profiles.status` | — |
+| Activate / deactivate customers | Yes | `profiles.status` | — |
+| Manage markets + categories | Yes | CRUD | — |
+| Content moderation | Yes | Hide/delete products | — |
+| Reports | Yes | Date-range aggregates + `reports` snapshot | Lightweight |
+| Announcements | Yes | `announcements` CRUD | Schema uses `is_published` (not `published_at`) |
 
 ---
 
-## 7. Other SRS items
+## 7. CRUD roadmap status
 
-| Item | Status |
-|------|--------|
-| About Us | Page present (`/about`) |
-| Contact Us | Page present (`/contact`); map note says backend phase |
-| Responsive design | Present |
-| No payment gateway | Respected (UI says pay at pickup) |
-| No delivery / courier | Respected (pickup-focused copy) |
-| Role-based access | Structure in place; deepen with RLS as features go live |
-| Non-functional (security, performance, a11y) | Auth + Netlify headers started; continue as features land |
-
----
-
-## 8. UI vs SRS — intentional non-changes
-
-Per project instructions, existing visual design was **not** restyled. Only allowed additive UI:
-
-1. **Smooth scrolling** site-wide (`html { scroll-behavior: smooth }` + reduced-motion respect).
-2. **Agriculture-themed splash screen** once per browser session.
-
-Dashboard chrome, marketing sections, colors, and layouts remain as previously built.
+| Phase | Delivered |
+|-------|-----------|
+| Foundation | API modules, CartContext, empty/demo states, sample catalog removed from `data.js` |
+| A — Products | Farmer product CRUD + public `/products` + FreshPicks |
+| B — Markets/Categories | Admin markets/categories + public markets/map/ticker |
+| C — Farmers | Approved directory + farmer profile form + admin approve/suspend |
+| D — Orders | Cart → orders, `/orders`, farmer status + stock on accept |
+| E — Favorites/Reviews | Heart toggle, `/favorites`, reviews + farmer response |
+| F — Admin ops | Customers, moderation, announcements, live stats/reports |
+| G — Hardening | Validation messages, demo notice, migration `002`, docs matrix, build verify |
 
 ---
 
-## 9. Remaining gaps (priority for next sprints)
+## 8. Remaining gaps
 
-1. Connect dashboards/catalog to Supabase tables (replace `data.js` sample where appropriate).  
-2. Real map provider (OSM/Leaflet or Google Maps).  
-3. Full order lifecycle + stock decrement.  
-4. Email/in-app notifications.  
-5. Optional AI chatbot.  
-6. Evaluation video + credentials sheet (SRS §1.9 deliverables).  
+1. Real map provider (OSM/Leaflet or Google Maps) instead of decorative SVG.  
+2. Email/in-app notifications.  
+3. Optional AI chatbot.  
+4. Apply migration `002_public_catalog_reads.sql` on the Supabase project for public farmer directory.  
+5. Evaluation video + credentials sheet (SRS §1.9).  
 
 ---
 
-## 10. Assumptions
+## 9. Assumptions
 
-- Stack choice: **React (Vite) + Supabase (Auth/Postgres)** for hosting on Netlify is acceptable for this delivery phase; SRS lists several backend options including MERN — Supabase provides the database + auth services without inventing unrelated schemas.  
-- Manager role is an **extension** beyond SRS, kept for future market-manager workflows.  
-- Until env vars are set, **demo auth** keeps UI flows usable for local preview.
+- Stack: **React (Vite) + Supabase** on Netlify.  
+- Manager role is an extension.  
+- Without env vars, **demo mode** shows empty states + clear message (no invented catalog rows).  
+- Seed SQL remains optional admin helpers only — not used by the frontend.

@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 
 export default function Navbar({ setTheme, dark, cart }) {
   const { isAuthenticated, dashboardPath, signOut, profile } = useAuth();
+  const showDashboard = isAuthenticated && dashboardPath.startsWith('/dashboard');
   const links = [
     ['Home', '/'],
     ['Markets', '/markets'],
@@ -54,9 +55,11 @@ export default function Navbar({ setTheme, dark, cart }) {
           </button>
           {isAuthenticated ? (
             <>
-              <button className="ic" type="button" onClick={() => navigate(dashboardPath)} aria-label="Dashboard" title={profile?.full_name || 'Dashboard'}>
-                <LayoutDashboard size={18} />
-              </button>
+              {showDashboard && (
+                <button className="ic" type="button" onClick={() => navigate(dashboardPath)} aria-label="Dashboard" title={profile?.full_name || 'Dashboard'}>
+                  <LayoutDashboard size={18} />
+                </button>
+              )}
               <button
                 className="ic"
                 type="button"
@@ -79,13 +82,19 @@ export default function Navbar({ setTheme, dark, cart }) {
               </button>
             </>
           )}
-          <button className="ic" type="button" onClick={() => navigate(isAuthenticated ? '/dashboard/customer/favorites' : '/login')} aria-label="Favourites">
+          <button className="ic" type="button" onClick={() => navigate(isAuthenticated ? '/favorites' : '/login')} aria-label="Favourites">
             <Heart size={19} />
           </button>
-          <button className="ic" type="button" onClick={() => navigate(isAuthenticated ? '/dashboard/customer/notifications' : '/login')} aria-label="Notifications">
-            <Bell size={19} />
-            <span className="dot">4</span>
-          </button>
+          {isAuthenticated && !showDashboard && (
+            <button className="ic" type="button" onClick={() => navigate('/orders')} aria-label="My orders" title="My orders">
+              <Bell size={19} />
+            </button>
+          )}
+          {showDashboard && (
+            <button className="ic" type="button" onClick={() => navigate(`${dashboardPath}/notifications`)} aria-label="Notifications">
+              <Bell size={19} />
+            </button>
+          )}
           <button className="ic" type="button" onClick={() => navigate('/cart')} aria-label="Cart">
             <ShoppingCart size={19} />
             <span className="dot bump">{cart}</span>

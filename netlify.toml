@@ -1,9 +1,15 @@
 # Netlify build & SPA routing for MarketLink (Vite + React)
 # https://docs.netlify.com/configure-builds/file-based-configuration/
+#
+# IMPORTANT: App lives at the REPO ROOT (not ./client).
+# In Netlify UI → Site configuration → Build & deploy → Build settings,
+# leave "Base directory" EMPTY. If it is set to "client", deploy fails with:
+#   Base directory does not exist: /opt/build/repo/client
 
 [build]
   command = "npm run build"
   publish = "dist"
+  # Do not set `base` here — package.json / vite / src are at repo root.
 
 [build.environment]
   NODE_VERSION = "20"

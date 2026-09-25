@@ -127,7 +127,8 @@ SRS §1.9 requires user credentials for all user types in the submission package
 ## 6. Verify auth quickly
 
 1. Start `npm run dev` with env vars set.
-2. Register a customer → land on `/dashboard/customer`.
+2. Register a customer → land on `/` (public shop). Farmer/admin → their dashboard.
+3. On login, use **Forgot password?** to send a Supabase reset email (live auth only).
 3. Sign out → register a farmer → profile `pending` until approved.
 4. Promote an admin in SQL → login → `/dashboard/admin`.
 5. Unauthenticated visit to `/dashboard/*` → redirect to `/login`.

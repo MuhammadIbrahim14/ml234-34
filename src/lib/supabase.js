@@ -28,10 +28,21 @@ export const ROLES = Object.freeze({
   MANAGER: 'manager',
 });
 
-/** Dashboard path for a role; visitors without a role stay on the marketing site. */
+/** Roles that use a dedicated dashboard (customers shop on the public site). */
+export const DASHBOARD_ROLES = Object.freeze([ROLES.FARMER, ROLES.ADMIN, ROLES.MANAGER]);
+
+export function hasDashboard(role) {
+  return DASHBOARD_ROLES.includes(role);
+}
+
+/**
+ * Post-login destination for a role.
+ * Farmer / admin / manager → dashboard; customer → public website (shop).
+ */
 export function dashboardPathForRole(role) {
-  const r = role && ROLES[String(role).toUpperCase()] ? String(role).toLowerCase() : 'customer';
-  return `/dashboard/${r}`;
+  const r = String(role || '').toLowerCase();
+  if (hasDashboard(r)) return `/dashboard/${r}`;
+  return '/';
 }
 
 export function isValidRole(role) {

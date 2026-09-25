@@ -20,6 +20,7 @@ Steps to put MarketLink live on Netlify as a static SPA backed by Supabase.
 1. Push the `marketlink` repo to GitHub/GitLab/Bitbucket (or use Netlify CLI drag-and-drop of `dist/` after `npm run build`).
 2. Netlify → **Add new site** → Import from Git.
 3. Build settings (auto-read from `netlify.toml`):
+   - **Base directory:** leave **empty** (app is at repo root — not `client`)
    - Build command: `npm run build`
    - Publish directory: `dist`
    - Node version: `20`
@@ -91,7 +92,10 @@ Netlify → Domain management → Add domain → follow DNS instructions. Update
 
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
+| `Base directory does not exist: .../client` | Netlify UI Base directory = `client` | Site configuration → Build & deploy → Build settings → Edit → clear **Base directory** (empty) → Save → Trigger deploy |
 | Blank routes on refresh | Redirects missing | Confirm `netlify.toml` / `_redirects` in repo |
 | Auth always demo mode | Env vars missing at build | Set `VITE_*` in Netlify and redeploy |
-| Login works but no profile | Migration not applied | Run `001_marketlink_schema.sql` |
+| Login works but no profile | Migration not applied | Run `001_marketlink_schema.sql` then `002_public_catalog_reads.sql` |
+| Empty public farmers / no farmer names on products | Migration `002` missing | Run `supabase/migrations/002_public_catalog_reads.sql` |
 | CORS / redirect errors | Auth URL config | Add Netlify URL in Supabase Auth settings |
+| Demo empty states everywhere | Env vars missing | Set `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` and redeploy |
