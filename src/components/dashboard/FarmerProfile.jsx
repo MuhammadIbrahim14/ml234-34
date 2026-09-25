@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { getMyFarmerProfile, updateFarmerProfile } from '../../lib/api/farmers';
+import { updateMyProfile } from '../../lib/api/profiles';
 import { listMarkets } from '../../lib/api/markets';
 import { LoadingBlock, ErrorBanner, EmptyState, DemoModeNotice, SuccessNote } from '../ui/DataState';
+import ImageUploadField from '../ui/ImageUploadField';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export default function FarmerProfile() {
-  const { user, isConfigured } = useAuth();
+  const { user, profile, isConfigured, refreshProfile } = useAuth();
   const [form, setForm] = useState({
     stall_name: '',
     contact_person: '',
@@ -16,6 +18,7 @@ export default function FarmerProfile() {
     pickup_windows: [],
     latitude: '',
     longitude: '',
+    avatar_url: '',
   });
   const [markets, setMarkets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,7 +41,10 @@ export default function FarmerProfile() {
         pickup_windows: Array.isArray(fp.data.pickup_windows) ? fp.data.pickup_windows : [],
         latitude: fp.data.latitude != null ? String(fp.data.latitude) : '',
         longitude: fp.data.longitude != null ? String(fp.data.longitude) : '',
+        avatar_url: profile?.avatar_url || fp.data.profiles?.avatar_url || '',
       });
+    } else {
+      setForm((f) => ({ ...f, avatar_url: profile?.avatar_url || '' }));
     }
     setError(fp.error || mk.error);
     setLoading(false);
@@ -90,6 +96,10 @@ export default function FarmerProfile() {
       return;
     }
     const { error: err } = await updateFarmerProfile(user.id, patch);
+    if (!err) {
+      await updateMyProfile(user.id, { avatar_url: form.avatar_url || null });
+      if (typeof refreshProfile === 'function') await refreshProfile();
+    }
     setBusy(false);
     if (err) setError(err);
     else setOk('Profile saved.');
@@ -130,6 +140,12 @@ export default function FarmerProfile() {
             Longitude
             <input type="number" step="any" value={form.longitude} onChange={(e) => setForm({ ...form, longitude: e.target.value })} />
           </label>
+          <ImageUploadField
+            label="Profile avatar"
+            value={form.avatar_url}
+            onChange={(url) => setForm({ ...form, avatar_url: url })}
+            disabled={busy}
+          />
           <div style={{ gridColumn: '1 / -1' }}>
             <b>Operating days</b>
             <div className="chips" style={{ marginTop: 8 }}>

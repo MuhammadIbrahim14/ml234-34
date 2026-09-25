@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Heart } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { isProductFavorited, toggleProductFavorite, toggleFarmerFavorite } from '../lib/api/favorites';
+import { isProductFavorited, isFarmerFavorited, toggleProductFavorite, toggleFarmerFavorite } from '../lib/api/favorites';
 import { navigate } from '../router';
 
 export default function HeartBtn({ productId = null, farmerId = null }) {
@@ -12,14 +12,19 @@ export default function HeartBtn({ productId = null, farmerId = null }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!isConfigured || !isAuthenticated || !user?.id || !productId) return;
-      const fav = await isProductFavorited(user.id, productId);
-      if (!cancelled) setOn(fav);
+      if (!isConfigured || !isAuthenticated || !user?.id) return;
+      if (productId) {
+        const fav = await isProductFavorited(user.id, productId);
+        if (!cancelled) setOn(fav);
+      } else if (farmerId) {
+        const fav = await isFarmerFavorited(user.id, farmerId);
+        if (!cancelled) setOn(fav);
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [productId, user?.id, isAuthenticated, isConfigured]);
+  }, [productId, farmerId, user?.id, isAuthenticated, isConfigured]);
 
   async function onClick(e) {
     e.stopPropagation();

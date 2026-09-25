@@ -28,6 +28,17 @@ export async function isProductFavorited(customerId, productId) {
   return Boolean(data);
 }
 
+export async function isFarmerFavorited(customerId, farmerId) {
+  if (!isSupabaseConfigured || !supabase || !customerId || !farmerId) return false;
+  const { data } = await supabase
+    .from('favorites')
+    .select('favorite_id')
+    .eq('customer_id', customerId)
+    .eq('farmer_id', farmerId)
+    .maybeSingle();
+  return Boolean(data);
+}
+
 export async function toggleProductFavorite(customerId, productId) {
   if (!isSupabaseConfigured || !supabase) return { favorited: false, error: DEMO_CRUD_MSG };
   const { data: existing } = await supabase

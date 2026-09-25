@@ -3,9 +3,10 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 const CartContext = createContext(null);
 const CART_KEY = 'ml-cart-v1';
 
+/** Per-tab cart so different logged-in roles do not share basket state. */
 function readCart() {
   try {
-    const raw = localStorage.getItem(CART_KEY);
+    const raw = sessionStorage.getItem(CART_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
     return Array.isArray(parsed) ? parsed : [];
   } catch {
@@ -17,7 +18,11 @@ export function CartProvider({ children }) {
   const [items, setItems] = useState(() => readCart());
 
   useEffect(() => {
-    localStorage.setItem(CART_KEY, JSON.stringify(items));
+    try {
+      sessionStorage.setItem(CART_KEY, JSON.stringify(items));
+    } catch {
+      /* ignore */
+    }
   }, [items]);
 
   const value = useMemo(() => {

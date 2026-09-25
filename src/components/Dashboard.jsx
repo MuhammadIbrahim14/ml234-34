@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { navigate } from '../router';
 import { useAuth } from '../context/AuthContext';
+import { flashToast } from '../lib/flashToast';
 import {
   LayoutDashboard, Package, ShoppingBag, Users, Store, MessageSquare,
   Bell, Settings, BarChart3, ClipboardList, LogOut, Menu,
@@ -18,6 +19,10 @@ import AdminProducts from './dashboard/AdminProducts';
 import AdminOrders from './dashboard/AdminOrders';
 import AdminAnnouncements from './dashboard/AdminAnnouncements';
 import AdminReports from './dashboard/AdminReports';
+import NotificationsPanel from './dashboard/NotificationsPanel';
+import ProfileSettings from './dashboard/ProfileSettings';
+import AdminContactMessages from './dashboard/AdminContactMessages';
+import AdminPickupSlots from './dashboard/AdminPickupSlots';
 import { EmptyState, DemoModeNotice } from './ui/DataState';
 
 const roles = {
@@ -35,7 +40,7 @@ const roles = {
       ['Overview', LayoutDashboard], ['Farmers', Users], ['Customers', Users],
       ['Markets', Store], ['Products', Package], ['Orders', ShoppingBag],
       ['Moderation', ShieldCheck], ['Reports', BarChart3], ['Announcements', Megaphone],
-      ['Settings', Settings]
+      ['Notifications', Bell], ['Settings', Settings]
     ]
   },
   manager: {
@@ -43,7 +48,7 @@ const roles = {
     items: [
       ['Overview', LayoutDashboard], ['Markets', Store], ['Orders', ShoppingBag],
       ['Farmers', Users], ['Inventory', Package], ['Pickup Slots', CalendarDays],
-      ['Reports', BarChart3], ['Announcements', Megaphone], ['Settings', Settings]
+      ['Reports', BarChart3], ['Announcements', Megaphone], ['Notifications', Bell], ['Settings', Settings]
     ]
   }
 };
@@ -80,6 +85,30 @@ function Placeholder({ title, message }) {
 function DashboardContent({ role, section }) {
   if (section === 'Overview' || !section) return <DashboardOverview role={role} />;
 
+  if (section === 'Notifications') return <NotificationsPanel />;
+  if (section === 'Settings') {
+    return (
+      <div className="panel-grid">
+        <ProfileSettings />
+        {role === 'admin' && <AdminContactMessages />}
+        {role === 'farmer' && (
+          <div className="dash-panel">
+            <div className="panel-title">
+              <div>
+                <span className="eyebrow">Stall</span>
+                <h3>Stall profile</h3>
+              </div>
+            </div>
+            <p className="muted">Update stall name, operating days, and pickup windows under Profile.</p>
+            <button className="btn sm" type="button" onClick={() => navigate('/dashboard/farmer/profile')}>
+              Open stall profile
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   if (role === 'farmer') {
     if (section === 'My Products') return <FarmerProducts mode="list" />;
     if (section === 'Add Product') return <FarmerProducts mode="add" />;
@@ -93,10 +122,18 @@ function DashboardContent({ role, section }) {
     if (section === 'Farmers') return <AdminFarmers />;
     if (section === 'Customers') return <AdminCustomers />;
     if (section === 'Products' || section === 'Inventory') return <AdminProducts />;
-    if (section === 'Moderation') return <AdminProducts moderation />;
+    if (section === 'Moderation') {
+      return (
+        <div className="panel-grid">
+          <AdminProducts moderation />
+          {role === 'admin' && <AdminContactMessages />}
+        </div>
+      );
+    }
     if (section === 'Orders') return <AdminOrders />;
     if (section === 'Announcements') return <AdminAnnouncements />;
     if (section === 'Reports') return <AdminReports />;
+    if (section === 'Pickup Slots') return <AdminPickupSlots />;
   }
 
   return (
@@ -110,18 +147,7 @@ function DashboardContent({ role, section }) {
         <button className="btn" type="button" onClick={() => navigate('/')}>Back Home</button>
       </div>
       <DemoModeNotice />
-      <Placeholder
-        title={section}
-        message={
-          section === 'Notifications'
-            ? 'In-app notifications will appear here when wired to email/push.'
-            : section === 'Settings'
-              ? 'Account settings use your profile from Auth for now.'
-              : section === 'Pickup Slots'
-                ? 'Farmers manage pickup windows under Profile.'
-                : 'This section has no extra records yet.'
-        }
-      />
+      <Placeholder title={section} message="This section has no extra records yet." />
     </section>
   );
 }
@@ -137,6 +163,18 @@ export default function Dashboard({ role = 'farmer' }) {
   const [section, setSection] = useState(initialSection);
   const [mobile, setMobile] = useState(false);
 
+  useEffect(() => {
+    const sync = () => {
+      const part = window.location.pathname.split('/').slice(3).join('/');
+      const label = part
+        ? (cfg.items.find(([l]) => l.toLowerCase().replaceAll(' ', '-') === part)?.[0] || 'Overview')
+        : 'Overview';
+      setSection(label);
+    };
+    window.addEventListener('popstate', sync);
+    return () => window.removeEventListener('popstate', sync);
+  }, [cfg.items]);
+
   const choose = (label) => {
     setSection(label);
     setMobile(false);
@@ -145,6 +183,7 @@ export default function Dashboard({ role = 'farmer' }) {
 
   const logout = async () => {
     await signOut();
+    flashToast('You are logged out. See you soon!');
     navigate('/');
   };
 
@@ -162,7 +201,13 @@ export default function Dashboard({ role = 'farmer' }) {
           </button>
         </div>
         <div className="dash-profile">
-          <div className="dash-avatar">{displayName.slice(0, 1)}</div>
+          <div className="dash-avatar">
+            {profile?.avatar_url ? (
+              <img src={profile.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+            ) : (
+              displayName.slice(0, 1)
+            )}
+          </div>
           <div>
             <b>{displayName}</b>
             <small>

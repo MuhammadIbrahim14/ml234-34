@@ -1,9 +1,18 @@
+import { useState } from "react";
 import { navigate } from "../../router";
-import { Leaf, Search, MapPin, Truck, Sprout, ArrowRight, ShoppingBasket } from "lucide-react";
+import { Leaf, MapPin, Truck, Sprout, ArrowRight, ShoppingBasket } from "lucide-react";
 import { IMG } from "../../data/data";
 import Img from "../../components/Img";
 
 export default function Hero() {
+  const [q, setQ] = useState("");
+
+  function goSearch(e) {
+    if (e) e.preventDefault();
+    const trimmed = q.trim();
+    navigate(trimmed ? `/products?q=${encodeURIComponent(trimmed)}` : "/products");
+  }
+
   return (
       <section className="hero">
         <div className="hero-bg"><Img src={IMG.heroField} alt="Farm field" /></div>
@@ -19,11 +28,16 @@ export default function Hero() {
               <span className="rise" style={{ "--d": ".34s" }}>Closer To <em className="you">You!</em></span>
             </h1>
             <p className="lead rise" style={{ "--d": ".46s" }}>Discover local farmers, explore nearby markets, and pre-order fresh produce — all in one place.</p>
-            <div className="bigsearch rise" style={{ "--d": ".58s" }}>
+            <form className="bigsearch rise" style={{ "--d": ".58s" }} onSubmit={goSearch}>
               <MapPin size={18} />
-              <input placeholder="Search for markets, products, or farmers..." />
-              <button onClick={() => navigate("/products")} className="circle shine" aria-label="Search"><ArrowRight size={18} /></button>
-            </div>
+              <input
+                placeholder="Search for markets, products, or farmers..."
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                aria-label="Search products"
+              />
+              <button type="submit" className="circle shine" aria-label="Search"><ArrowRight size={18} /></button>
+            </form>
             <div className="feats rise" style={{ "--d": ".7s" }}>
               {[
                 { i: Sprout, t: "Local Farmers", s: "Direct from source" },

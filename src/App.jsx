@@ -25,6 +25,7 @@ import {
   CartPage,
   OrdersPage,
   FavoritesPage,
+  NotificationsPage,
 } from './components/SitePages';
 import { getRoute } from './router';
 import { useCart } from './context/CartContext';
@@ -48,14 +49,25 @@ export default function App() {
   const showToast = (msg) => {
     setToast(msg);
     clearTimeout(window.__mlToast);
-    window.__mlToast = setTimeout(() => setToast(''), 2200);
+    window.__mlToast = setTimeout(() => setToast(''), 2800);
   };
+  useEffect(() => {
+    const onFlash = (e) => showToast(e.detail);
+    window.addEventListener('ml-flash', onFlash);
+    return () => window.removeEventListener('ml-flash', onFlash);
+  }, []);
   const isDash = route.startsWith('/dashboard/');
   const dashRole = isDash ? route.split('/')[2] : null;
+  const toastEl = (
+    <div className={'toast' + (toast ? ' show' : '')} role="status">
+      <Check size={16} /> {toast}
+    </div>
+  );
   const shell = (children) => (
     <div className={'ml' + (dark ? ' dark' : '')}>
       <SplashScreen />
       {children}
+      {toastEl}
     </div>
   );
 
@@ -85,6 +97,7 @@ export default function App() {
     '/cart': <CartPage />,
     '/orders': <OrdersPage />,
     '/favorites': <FavoritesPage />,
+    '/notifications': <NotificationsPage />,
   };
   const page = pageMap[route];
   return shell(
@@ -111,9 +124,6 @@ export default function App() {
         </>
       )}
       <Footer dark={dark} setTheme={setTheme} />
-      <div className={'toast' + (toast ? ' show' : '')} role="status">
-        <Check size={16} /> {toast}
-      </div>
     </>
   );
 }

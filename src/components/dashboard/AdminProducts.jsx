@@ -15,7 +15,7 @@ export default function AdminProducts({ moderation = false }) {
 
   async function load() {
     setLoading(true);
-    const { data, error: err } = await listProducts({ limit: 200 });
+    const { data, error: err } = await listProducts({ limit: 200, approvedFarmersOnly: false });
     setRows(data || []);
     setError(err);
     setLoading(false);

@@ -62,44 +62,17 @@ export async function updateOrderStatus(orderId, orderStatus) {
   return { data, error: error ? apiError(error) : null };
 }
 
-/** Accept order and decrement stock in one flow. */
+/** Accept order and decrement stock via transactional RPC (migration 005). */
 export async function acceptOrder(orderId) {
   if (!isSupabaseConfigured || !supabase) return { data: null, error: DEMO_CRUD_MSG };
 
-  const { data: existing, error: fetchErr } = await supabase
-    .from('orders')
-    .select('order_id, order_status, product_id, quantity')
-    .eq('order_id', orderId)
-    .maybeSingle();
-  if (fetchErr) return { data: null, error: apiError(fetchErr) };
-  if (!existing) return { data: null, error: 'Order not found.' };
-  if (existing.order_status !== 'placed') return { data: null, error: 'Only placed orders can be accepted.' };
-
-  const { data: product, error: pErr } = await supabase
-    .from('products')
-    .select('product_id, stock_quantity')
-    .eq('product_id', existing.product_id)
-    .maybeSingle();
-  if (pErr) return { data: null, error: apiError(pErr) };
-  if (!product || product.stock_quantity < existing.quantity) {
-    return { data: null, error: 'Not enough stock to accept this order.' };
-  }
-
-  const nextStock = product.stock_quantity - existing.quantity;
-  const stockPatch = {
-    stock_quantity: nextStock,
-    updated_at: new Date().toISOString(),
-  };
-  if (nextStock === 0) stockPatch.is_available = false;
-
-  const { error: stockErr } = await supabase.from('products').update(stockPatch).eq('product_id', product.product_id);
-  if (stockErr) return { data: null, error: apiError(stockErr) };
+  const { error: rpcErr } = await supabase.rpc('accept_order', { p_order_id: orderId });
+  if (rpcErr) return { data: null, error: apiError(rpcErr) };
 
   const { data, error } = await supabase
     .from('orders')
-    .update({ order_status: 'accepted', updated_at: new Date().toISOString() })
-    .eq('order_id', orderId)
     .select(ORDER_SELECT)
+    .eq('order_id', orderId)
     .single();
   return { data, error: error ? apiError(error) : null };
 }

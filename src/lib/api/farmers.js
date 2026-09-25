@@ -35,6 +35,8 @@ export async function getMyFarmerProfile(userId) {
 
 export async function updateFarmerProfile(userId, patch) {
   if (!isSupabaseConfigured || !supabase) return { data: null, error: DEMO_CRUD_MSG };
+  // Strip approved unless caller is intentionally setting it (admin path uses setFarmerApproved).
+  // DB trigger also blocks non-admin approved flips.
   const { data, error } = await supabase
     .from('farmer_profiles')
     .update({ ...patch, updated_at: new Date().toISOString() })

@@ -4,7 +4,7 @@ import Img from './Img';
 import { navigate } from '../router';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { listMarkets, marketPinPosition } from '../lib/api/markets';
+import { listMarkets } from '../lib/api/markets';
 import { listProducts, productFarmerName } from '../lib/api/products';
 import { listCategories } from '../lib/api/categories';
 import { listApprovedFarmers, farmerProductTags, getMyFarmerProfile } from '../lib/api/farmers';
@@ -14,6 +14,7 @@ import { createReview } from '../lib/api/reviews';
 import { IMG } from '../data/data';
 import { LoadingBlock, ErrorBanner, EmptyState, DemoModeNotice } from './ui/DataState';
 import HeartBtn from './HeartBtn';
+import MarketsOsmMap from './MarketsOsmMap';
 
 function Header({ title, sub }) {
   return (
@@ -29,12 +30,14 @@ export function MarketsPage() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
       const { data, error: err } = await listMarkets({ activeOnly: true });
       setRows(data || []);
+      setSelectedId(data?.[0]?.market_id ?? null);
       setError(err);
       setLoading(false);
     })();
@@ -52,33 +55,47 @@ export function MarketsPage() {
         ) : !rows.length ? (
           <EmptyState title="No markets yet" message="Active markets will appear here once an admin adds them." />
         ) : (
-          <div className="catalog-grid">
-            {rows.map((m, i) => {
-              const pin = marketPinPosition(m, i, rows.length);
-              return (
-                <article className="catalog-card" key={m.market_id}>
-                  <div className="catalog-img">
-                    <Img src={IMG.marketFallback} alt={m.market_name} />
-                    <span>{m.is_active ? 'Open' : 'Closed'}</span>
-                  </div>
-                  <div className="catalog-body">
-                    <h3>{m.market_name}</h3>
-                    <p>
-                      <MapPin size={14} /> {m.address || 'Address coming soon'}
-                    </p>
-                    <small>
-                      {(m.operating_days || []).join(', ') || 'Days TBD'}
-                      {m.timings ? ` · ${m.timings}` : ''}
-                      {m.latitude != null ? ` · pin ${Math.round(pin.x)}%,${Math.round(pin.y)}%` : ''}
-                    </small>
-                    <button className="btn sm" type="button" onClick={() => navigate('/products')}>
-                      Browse produce <ArrowRight size={14} />
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
+          <>
+            <div className="markets-map-block" style={{ marginBottom: 24 }}>
+              <MarketsOsmMap
+                markets={rows}
+                selectedId={selectedId}
+                onSelect={(m) => setSelectedId(m.market_id)}
+                height={360}
+              />
+            </div>
+            <div className="catalog-grid">
+              {rows.map((m) => {
+                const hasCoords = m.latitude != null && m.longitude != null;
+                return (
+                  <article
+                    className={'catalog-card' + (selectedId === m.market_id ? ' sel' : '')}
+                    key={m.market_id}
+                    onClick={() => setSelectedId(m.market_id)}
+                  >
+                    <div className="catalog-img">
+                      <Img src={IMG.marketFallback} alt={m.market_name} />
+                      <span>{m.is_active ? 'Open' : 'Closed'}</span>
+                    </div>
+                    <div className="catalog-body">
+                      <h3>{m.market_name}</h3>
+                      <p>
+                        <MapPin size={14} /> {m.address || 'Address coming soon'}
+                      </p>
+                      <small>
+                        {(m.operating_days || []).join(', ') || 'Days TBD'}
+                        {m.timings ? ` · ${m.timings}` : ''}
+                        {hasCoords ? '' : ' · location pending'}
+                      </small>
+                      <button className="btn sm" type="button" onClick={() => navigate('/products')}>
+                        Browse produce <ArrowRight size={14} />
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
     </>
@@ -91,7 +108,13 @@ export function ProductsPage() {
   const [rows, setRows] = useState([]);
   const [categories, setCategories] = useState([]);
   const [markets, setMarkets] = useState([]);
-  const [q, setQ] = useState('');
+  const [q, setQ] = useState(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('q') || '';
+    } catch {
+      return '';
+    }
+  });
   const [categoryId, setCategoryId] = useState('');
   const [marketId, setMarketId] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -101,6 +124,19 @@ export function ProductsPage() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const pageSize = 24;
+
+  useEffect(() => {
+    const syncQ = () => {
+      try {
+        const next = new URLSearchParams(window.location.search).get('q') || '';
+        setQ(next);
+      } catch {
+        /* ignore */
+      }
+    };
+    window.addEventListener('popstate', syncQ);
+    return () => window.removeEventListener('popstate', syncQ);
+  }, []);
 
   async function load() {
     setLoading(true);
@@ -340,31 +376,68 @@ export function AboutPage() {
 }
 
 export function ContactPage() {
+  const [form, setForm] = useState({ name: '', email: '', message: '' });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const [ok, setOk] = useState('');
+
+  async function onSubmit(e) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    setOk('');
+    const { submitContactMessage } = await import('../lib/api/contact');
+    const { error: err, mailOk, mailError } = await submitContactMessage(form);
+    setBusy(false);
+    if (err) {
+      setError(err);
+      return;
+    }
+    setForm({ name: '', email: '', message: '' });
+    setOk(
+      mailOk === false
+        ? `Message saved. Email notice failed${mailError ? `: ${mailError}` : '.'}`
+        : 'Thanks — your message was sent.'
+    );
+  }
+
   return (
     <>
       <Header title="Contact Us" sub="Have a question about markets, farmers or pickup? Reach out." />
       <div className="wrap contact-grid">
-        <form
-          className="contact-form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            alert('Thanks — your message was recorded locally. Connect a mail backend later.');
-          }}
-        >
+        <form className="contact-form" onSubmit={onSubmit}>
+          <ErrorBanner message={error} />
+          {ok && <p className="muted" role="status">{ok}</p>}
           <label>
             Name
-            <input required placeholder="Your name" />
+            <input
+              required
+              placeholder="Your name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
           </label>
           <label>
             Email
-            <input type="email" required placeholder="you@example.com" />
+            <input
+              type="email"
+              required
+              placeholder="you@example.com"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
           </label>
           <label>
             Message
-            <textarea required placeholder="How can we help?" />
+            <textarea
+              required
+              placeholder="How can we help?"
+              value={form.message}
+              onChange={(e) => setForm({ ...form, message: e.target.value })}
+            />
           </label>
-          <button className="btn" type="submit">
-            Send Message <Send size={15} />
+          <button className="btn" type="submit" disabled={busy}>
+            {busy ? 'Sending…' : 'Send Message'} <Send size={15} />
           </button>
         </form>
         <div className="contact-card">
@@ -381,9 +454,94 @@ export function ContactPage() {
   );
 }
 
+export function NotificationsPage() {
+  const { user, isAuthenticated, isConfigured } = useAuth();
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  async function load() {
+    if (!user?.id) return;
+    setLoading(true);
+    const { listNotifications } = await import('../lib/api/notifications');
+    const { data, error: err } = await listNotifications(user.id);
+    setRows(data || []);
+    setError(err);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, isAuthenticated]);
+
+  async function onRead(id) {
+    const { markNotificationRead } = await import('../lib/api/notifications');
+    await markNotificationRead(id);
+    await load();
+  }
+
+  async function onReadAll() {
+    const { markAllNotificationsRead } = await import('../lib/api/notifications');
+    await markAllNotificationsRead(user.id);
+    await load();
+  }
+
+  return (
+    <>
+      <Header title="Notifications" sub="Order updates and account alerts." />
+      <div className="wrap">
+        <DemoModeNotice />
+        {!isConfigured ? null : loading ? (
+          <LoadingBlock label="Loading notifications…" />
+        ) : error ? (
+          <ErrorBanner message={error} onRetry={load} />
+        ) : !rows.length ? (
+          <EmptyState title="No notifications" message="You will see order and account alerts here." />
+        ) : (
+          <>
+            {rows.some((n) => !n.read_at) && (
+              <button className="btn sm" type="button" onClick={onReadAll} style={{ marginBottom: 12 }}>
+                Mark all read
+              </button>
+            )}
+            <div className="notif-list">
+              {rows.map((n) => (
+                <article key={n.id} className={'notif-item' + (n.read_at ? '' : ' unread')}>
+                  <div className="notif-body">
+                    <b>{n.title}</b>
+                    {n.body && <p>{n.body}</p>}
+                    <small>{n.created_at ? new Date(n.created_at).toLocaleString() : ''}</small>
+                    <div className="notif-actions">
+                      {n.link && (
+                        <button type="button" className="btn sm ghost" onClick={() => navigate(n.link)}>
+                          Open
+                        </button>
+                      )}
+                      {!n.read_at && (
+                        <button type="button" className="btn sm" onClick={() => onRead(n.id)}>
+                          Mark read
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
 export function CartPage() {
   const { items, removeItem, updateQty, total, clear } = useCart();
-  const { user, isAuthenticated, role, ROLES, isConfigured } = useAuth();
+  const { user, profile, isAuthenticated, role, ROLES, isConfigured } = useAuth();
   const [pickupDate, setPickupDate] = useState('');
   const [pickupSlot, setPickupSlot] = useState('');
   const [slots, setSlots] = useState([]);
@@ -438,12 +596,34 @@ export function CartPage() {
       pickup_slot: pickupSlot,
       order_status: 'placed',
     }));
-    const { error: err } = await createOrders(rows);
+    const { data: created, error: err } = await createOrders(rows);
     setBusy(false);
     if (err) setError(err);
     else {
+      const toEmail = profile?.email || user?.email || '';
+      if (toEmail) {
+        const { sendOrderConfirmationMail } = await import('../lib/emailjs');
+        const enriched = (created || []).map((o) => {
+          const cartItem = items.find((i) => i.product_id === o.product_id);
+          return {
+            ...o,
+            product_name: o.products?.name || cartItem?.name,
+            unit: o.products?.unit || cartItem?.unit,
+          };
+        });
+        const mail = await sendOrderConfirmationMail({
+          toEmail,
+          toName: profile?.full_name || 'Customer',
+          orders: enriched.length ? enriched : rows,
+          pickupDate,
+          pickupSlot,
+        });
+        if (!mail.ok) {
+          console.warn('[MarketLink] order email:', mail.error);
+        }
+      }
       clear();
-      setOk('Orders placed. Track them under My Orders.');
+      setOk('Orders placed. A confirmation email will arrive if EmailJS is configured. Track them under My Orders.');
       navigate('/orders');
     }
   }

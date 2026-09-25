@@ -1,6 +1,6 @@
 # MarketLink — SRS Alignment & Gap Analysis
 
-**Document date:** 25 September 2026 (CRUD roadmap landed)  
+**Document date:** 25 September 2026 (DB wiring Phases 0–6)  
 **SRS source:** `MarketLink End-to-End Web Solutions_SRS.pdf` (Version 1.0, Theme: eGreen Basket)  
 **Codebase reviewed:** React + Vite frontend under `src/` + Supabase schema/migrations
 
@@ -23,13 +23,14 @@ MarketLink connects local farmers-market farmers with customers so that:
 
 | Area | Status |
 |------|--------|
-| Marketing / visitor website (home, markets, products, farmers, about, contact, cart, orders, favorites) | **Live against Supabase when env set; empty states + demo notice otherwise** |
+| Marketing / visitor website (home, markets, products, farmers, about, contact, cart, orders, favorites, notifications) | **Live against Supabase when env set** |
 | Light / dark theme, responsive layout | **Implemented** |
 | Login / Register screens | **Wired to Supabase Auth + demo fallback** |
-| Farmer / Admin / Manager dashboards | **CRUD sections wired (products, markets, categories, farmers, customers, orders, reviews, announcements, reports)** |
-| Supabase schema + RLS + auth profiles | **Configured (`001` + `002_public_catalog_reads`)** |
-| Netlify SPA deploy | **Configured (`netlify.toml`, `public/_redirects`)** |
-| Real map (Google Maps / OSM), payments, AI chatbot | **Still gaps** |
+| Farmer / Admin / Manager dashboards | **CRUD + notifications + settings wired** |
+| Supabase schema + RLS + auth profiles | **`001`–`005` (wiring hardening)** |
+| Netlify SPA deploy | **Configured** |
+| Real map (OSM/Leaflet) | **Implemented on Explore + Markets** |
+| Payments, AI chatbot | **Out of scope / optional gap** |
 
 ---
 
@@ -38,12 +39,12 @@ MarketLink connects local farmers-market farmers with customers so that:
 | Role | In SRS? | In UI? | Auth readiness |
 |------|---------|--------|----------------|
 | Visitor (unauthenticated) | Implied | Yes — public pages | Yes |
-| Customer | Yes | Public website shop (no dashboard) | Register/login → home/products/cart/orders/favorites |
+| Customer | Yes | Public website shop (no dashboard) | Register/login → home/products/cart/orders/favorites/notifications |
 | Farmer | Yes | Yes — `/dashboard/farmer` | Register as farmer + admin approval |
 | Admin | Yes | Yes — `/dashboard/admin` | Promote via SQL after signup |
 | Manager | **No (extension)** | Yes — `/dashboard/manager` | Enum + guard reserved |
 
-> **Product decision:** Customer dashboard removed by design. Customers shop on the public site (`/cart`, `/orders`, `/favorites`).
+> **Product decision:** Customer dashboard removed by design. Customers shop on the public site (`/cart`, `/orders`, `/favorites`, `/notifications`).
 
 ---
 
@@ -53,15 +54,16 @@ MarketLink connects local farmers-market farmers with customers so that:
 |-------------|-------------|----------------|-----------|
 | Register / login | Yes | Supabase Auth + `profiles` | Email confirm depends on project settings |
 | Customer dashboard | **Removed** | — | Use public site |
-| Forgot password | Yes | `resetPasswordForEmail` | Needs live Supabase templates |
-| Browse markets & farmers | Yes | Live `markets` / approved `farmer_profiles` | OSM/Google map still decorative SVG |
-| Search / filter products | Yes | Live `products` + category/market filters | — |
-| Cart + pre-order + pickup slot | Yes | `orders` insert (one row per line) | Default slots if farmer windows empty |
-| Order status / cancel | Yes `/orders` | Cancel when `placed` | — |
-| Favorites | Yes `/favorites` + heart | `favorites` table | — |
+| Forgot password | Yes | EmailJS OTP + `004` RPC | Needs EmailJS + migration 004 |
+| Browse markets & farmers | Yes | Live + **Leaflet OSM** | — |
+| Search / filter products | Yes | Live + Hero/Nav `?q=` | — |
+| Cart + pre-order + pickup slot | Yes | `orders` insert | Default slots if farmer windows empty |
+| Order status / cancel | Yes `/orders` | Cancel when `placed` | In-app notifications on status |
+| Favorites | Yes `/favorites` + heart | Product + farmer hearts | — |
 | Reviews after completed | Yes on `/orders` | `reviews` insert | — |
-| AI assistant | No | — | Optional |
-| Notifications | Bell UI | — | Email/in-app later |
+| AI assistant | No | — | Optional / out of scope |
+| Notifications | Yes `/notifications` + bell | `notifications` table + triggers | — |
+| Contact | Yes | `contact_messages` + EmailJS | — |
 
 ---
 
@@ -69,13 +71,14 @@ MarketLink connects local farmers-market farmers with customers so that:
 
 | Requirement | UI present? | Backend / data | Gap notes |
 |-------------|-------------|----------------|-----------|
-| Farmer registration | Yes | Auth + `farmer_profiles` | Admin approve |
-| Profile (days, pickup windows, map) | Yes | `farmer_profiles` update | — |
-| CRUD stock & pricing | Yes | Full `products` fields | — |
+| Farmer registration | Yes | Auth + `farmer_profiles` | Pending until admin approve |
+| Profile (days, pickup windows, map, avatar) | Yes | `farmer_profiles` + `profiles.avatar_url` | — |
+| CRUD stock & pricing | Yes | Blocked until `approved` (RLS + banner) | — |
 | Sold out / unavailable | Yes | `is_available` toggle | — |
-| Manage pre-orders | Yes | Status machine + stock decrement on **accept** | — |
+| Manage pre-orders | Yes | `accept_order` RPC (atomic stock) | — |
 | Sales insights | Yes | Live order aggregates | — |
 | Respond to reviews | Yes | `farmer_response` | — |
+| Notifications | Yes | Dashboard list | — |
 
 ---
 
@@ -84,37 +87,37 @@ MarketLink connects local farmers-market farmers with customers so that:
 | Requirement | UI present? | Backend / data | Gap notes |
 |-------------|-------------|----------------|-----------|
 | Dashboard metrics | Yes | Count queries | — |
-| Approve / suspend farmers | Yes | `approved` + `profiles.status` | — |
+| Approve / suspend farmers | Yes | `approved` + welcome notification | — |
 | Activate / deactivate customers | Yes | `profiles.status` | — |
-| Manage markets + categories | Yes | CRUD | — |
-| Content moderation | Yes | Hide/delete products | — |
+| Manage markets + categories | Yes | CRUD | Seed Lahore markets available |
+| Content moderation | Yes | Hide/delete products + contact inbox | — |
 | Reports | Yes | Date-range aggregates + `reports` snapshot | Lightweight |
-| Announcements | Yes | `announcements` CRUD | Schema uses `is_published` (not `published_at`) |
+| Announcements | Yes | `announcements` CRUD | — |
+| Pickup slots (manager) | Yes | Read-only farmer `pickup_windows` | — |
 
 ---
 
-## 7. CRUD roadmap status
+## 7. CRUD / wiring roadmap status
 
 | Phase | Delivered |
 |-------|-----------|
-| Foundation | API modules, CartContext, empty/demo states, sample catalog removed from `data.js` |
-| A — Products | Farmer product CRUD + public `/products` + FreshPicks |
-| B — Markets/Categories | Admin markets/categories + public markets/map/ticker |
-| C — Farmers | Approved directory + farmer profile form + admin approve/suspend |
-| D — Orders | Cart → orders, `/orders`, farmer status + stock on accept |
-| E — Favorites/Reviews | Heart toggle, `/favorites`, reviews + farmer response |
-| F — Admin ops | Customers, moderation, announcements, live stats/reports |
-| G — Hardening | Validation messages, demo notice, migration `002`, docs matrix, build verify |
+| Foundation–G | Prior CRUD roadmap |
+| Phase 0 | SETUP verification checklist for 001–004 |
+| Phase 1 | Migration `005_wiring_hardening.sql` |
+| Phase 2 | Expanded `seed.sql` (Lahore markets) |
+| Phase 3 | Contact, notifications, settings, footer newsletter, hero search |
+| Phase 4 | Pending banner, accept RPC, hearts, approve notify, pickup slots |
+| Phase 5 | Leaflet OSM on ExploreMap + Markets |
+| Phase 6 | Docs + build verify |
 
 ---
 
 ## 8. Remaining gaps
 
-1. Real map provider (OSM/Leaflet or Google Maps) instead of decorative SVG.  
-2. Email/in-app notifications.  
-3. Optional AI chatbot.  
-4. Apply migration `002_public_catalog_reads.sql` on the Supabase project for public farmer directory.  
-5. Evaluation video + credentials sheet (SRS §1.9).  
+1. Optional AI chatbot (SRS optional) — **not in scope**.  
+2. Payment gateway / delivery — **not in scope**.  
+3. Evaluation video + credentials sheet (SRS §1.9) — submission package.  
+4. Apply migrations `001`–`005` + `seed.sql` on the live Supabase project (manual).  
 
 ---
 
@@ -122,5 +125,5 @@ MarketLink connects local farmers-market farmers with customers so that:
 
 - Stack: **React (Vite) + Supabase** on Netlify.  
 - Manager role is an extension.  
-- Without env vars, **demo mode** shows empty states + clear message (no invented catalog rows).  
-- Seed SQL remains optional admin helpers only — not used by the frontend.
+- Without env vars, **demo mode** shows empty states + clear message.  
+- Seed SQL inserts markets only — no fake auth passwords in git.

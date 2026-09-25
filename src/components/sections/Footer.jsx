@@ -1,17 +1,34 @@
-import { Sun, Moon, Instagram, Facebook, Twitter, Youtube, Linkedin, Music2, Send } from "lucide-react";
+import { useState } from "react";
+import { Sun, Moon, Send } from "lucide-react";
 import Logo from "../../components/Logo";
 import { navigate } from "../../router";
+import { flashToast } from "../../lib/flashToast";
+import { subscribeNewsletter } from "../../lib/api/contact";
 
 export default function Footer({ dark, setTheme }) {
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function onSubscribe(e) {
+    if (e) e.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    const { error } = await subscribeNewsletter(email);
+    setBusy(false);
+    if (error) {
+      flashToast(error);
+      return;
+    }
+    setEmail("");
+    flashToast("Subscribed — thanks for staying in touch!");
+  }
+
   return (
       <footer className="foot">
         <div className="wrap foot-in">
           <div className="fcol brand">
             <Logo />
             <p className="fdesc">Connecting local farmers with their community — one fresh basket at a time.</p>
-            <div className="socials">
-              {[Instagram, Facebook, Twitter, Youtube, Music2, Linkedin].map((I, i) => <a key={i} aria-label="social"><I size={16} /></a>)}
-            </div>
           </div>
           <div className="fcol"><b>Quick Links</b>{["Home", "Markets", "Farmers", "How It Works", "About Us"].map((l) => <a key={l} onClick={() => navigate(({"Home":"/","Markets":"/markets","Farmers":"/farmers","How It Works":"/#how-it-works","About Us":"/about"}[l] || "/"))}>{l}</a>)}</div>
           <div className="fcol"><b>Customer Support</b>{["Help Center", "Contact Us", "FAQs", "Track Order"].map((l) => <a key={l} onClick={() => navigate(({"Help Center":"/contact","Contact Us":"/contact","FAQs":"/contact","Track Order":"/orders"}[l] || "/contact"))}>{l}</a>)}</div>
@@ -19,10 +36,22 @@ export default function Footer({ dark, setTheme }) {
           <div className="fcol news">
             <b>Stay Updated</b>
             <small>Get the latest updates, offers and fresh produce news.</small>
-            <div className="nl"><input placeholder="Your email address" /><button aria-label="Subscribe" onClick={() => alert("Subscribed in frontend demo.")}><Send size={15} /></button></div>
+            <form className="nl" onSubmit={onSubscribe}>
+              <input
+                type="email"
+                required
+                placeholder="Your email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                aria-label="Newsletter email"
+              />
+              <button type="submit" aria-label="Subscribe" disabled={busy}>
+                <Send size={15} />
+              </button>
+            </form>
             <div className="seg">
-              <button className={!dark ? "on" : ""} onClick={() => setTheme(false)}><Sun size={14} /> Light</button>
-              <button className={dark ? "on" : ""} onClick={() => setTheme(true)}><Moon size={14} /> Dark</button>
+              <button type="button" className={!dark ? "on" : ""} onClick={() => setTheme(false)}><Sun size={14} /> Light</button>
+              <button type="button" className={dark ? "on" : ""} onClick={() => setTheme(true)}><Moon size={14} /> Dark</button>
             </div>
             <span className="script choose">Choose your vibe ♡</span>
           </div>

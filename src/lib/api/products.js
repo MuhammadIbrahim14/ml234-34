@@ -13,7 +13,27 @@ function notConfigured() {
   return { data: [], error: DEMO_CRUD_MSG };
 }
 
-export async function listProducts({ availableOnly = false, farmerId = null, categoryId = null, marketId = null, search = '', limit = 100, offset = 0 } = {}) {
+function isApprovedFarmerProduct(p) {
+  const fp = p?.profiles?.farmer_profiles;
+  const row = Array.isArray(fp) ? fp[0] : fp;
+  return row?.approved === true;
+}
+
+/**
+ * @param {object} opts
+ * @param {boolean} [opts.approvedFarmersOnly] — default true for public catalog;
+ *   false for admin; auto-skipped when farmerId is set (owner list).
+ */
+export async function listProducts({
+  availableOnly = false,
+  farmerId = null,
+  categoryId = null,
+  marketId = null,
+  search = '',
+  limit = 100,
+  offset = 0,
+  approvedFarmersOnly,
+} = {}) {
   if (!isSupabaseConfigured || !supabase) return notConfigured();
 
   let q = supabase.from('products').select(PRODUCT_SELECT).order('created_at', { ascending: false }).range(offset, offset + limit - 1);
@@ -24,10 +44,14 @@ export async function listProducts({ availableOnly = false, farmerId = null, cat
   if (search?.trim()) q = q.ilike('name', `%${search.trim()}%`);
 
   const { data, error } = await q;
-  return { data: data || [], error: error ? apiError(error) : null };
+  if (error) return { data: [], error: apiError(error) };
+
+  const filterApproved = approvedFarmersOnly === true || (approvedFarmersOnly !== false && !farmerId);
+  const rows = filterApproved ? (data || []).filter(isApprovedFarmerProduct) : data || [];
+  return { data: rows, error: null };
 }
 
-export async function listLowStockProducts({ threshold = 10, limit = 12 } = {}) {
+export async function listLowStockProducts({ threshold = 10, limit = 12, approvedFarmersOnly = true } = {}) {
   if (!isSupabaseConfigured || !supabase) return notConfigured();
   const { data, error } = await supabase
     .from('products')
@@ -37,7 +61,9 @@ export async function listLowStockProducts({ threshold = 10, limit = 12 } = {}) 
     .lte('stock_quantity', threshold)
     .order('stock_quantity', { ascending: true })
     .limit(limit);
-  return { data: data || [], error: error ? apiError(error) : null };
+  if (error) return { data: [], error: apiError(error) };
+  const rows = approvedFarmersOnly ? (data || []).filter(isApprovedFarmerProduct) : data || [];
+  return { data: rows, error: null };
 }
 
 export async function getProduct(productId) {

@@ -7,6 +7,35 @@ const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 export const isSupabaseConfigured = Boolean(url && anonKey);
 
 /**
+ * Per-tab auth storage (sessionStorage).
+ * localStorage is shared across tabs, so every tab showed the same login.
+ * sessionStorage lets customer / farmer / admin stay logged in in separate tabs.
+ */
+const tabAuthStorage = {
+  getItem: (key) => {
+    try {
+      return sessionStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+  setItem: (key, value) => {
+    try {
+      sessionStorage.setItem(key, value);
+    } catch {
+      /* ignore quota / private mode */
+    }
+  },
+  removeItem: (key) => {
+    try {
+      sessionStorage.removeItem(key);
+    } catch {
+      /* ignore */
+    }
+  },
+};
+
+/**
  * Browser Supabase client. Uses anon key only (RLS enforces access).
  * When env vars are missing, client is null and the UI falls back to demo auth.
  */
@@ -16,6 +45,7 @@ export const supabase = isSupabaseConfigured
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
+        storage: tabAuthStorage,
         storageKey: 'marketlink-auth',
       },
     })

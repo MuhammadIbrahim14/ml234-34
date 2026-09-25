@@ -4,7 +4,9 @@ import { useAuth } from '../../context/AuthContext';
 import { listProducts, createProduct, updateProduct, deleteProduct, setProductAvailable } from '../../lib/api/products';
 import { listCategories } from '../../lib/api/categories';
 import { listMarkets } from '../../lib/api/markets';
+import { getMyFarmerProfile } from '../../lib/api/farmers';
 import { LoadingBlock, ErrorBanner, EmptyState, DemoModeNotice, ConfirmDelete, SuccessNote } from '../ui/DataState';
+import ImageUploadField from '../ui/ImageUploadField';
 
 const emptyForm = {
   name: '',
@@ -19,7 +21,7 @@ const emptyForm = {
 };
 
 export default function FarmerProducts({ mode = 'list' }) {
-  const { user, isConfigured } = useAuth();
+  const { user, profile, isConfigured } = useAuth();
   const [rows, setRows] = useState([]);
   const [categories, setCategories] = useState([]);
   const [markets, setMarkets] = useState([]);
@@ -30,20 +32,25 @@ export default function FarmerProducts({ mode = 'list' }) {
   const [busy, setBusy] = useState(false);
   const [ok, setOk] = useState('');
   const [deleteId, setDeleteId] = useState(null);
+  const [approved, setApproved] = useState(true);
   const showForm = mode === 'add' || editingId != null;
+  const pending =
+    profile?.status === 'pending' || profile?.status === 'suspended' || approved === false;
 
   async function load() {
     if (!user?.id) return;
     setLoading(true);
-    const [p, c, m] = await Promise.all([
+    const [p, c, m, fp] = await Promise.all([
       listProducts({ farmerId: user.id }),
       listCategories(),
       listMarkets({ activeOnly: true }),
+      getMyFarmerProfile(user.id),
     ]);
     setRows(p.data || []);
     setCategories(c.data || []);
     setMarkets(m.data || []);
-    setError(p.error || c.error || m.error);
+    setApproved(fp.data?.approved !== false);
+    setError(p.error || c.error || m.error || fp.error);
     setLoading(false);
   }
 
@@ -101,7 +108,14 @@ export default function FarmerProducts({ mode = 'list' }) {
       : await createProduct(payload);
     setBusy(false);
     if (result.error) {
-      setError(result.error);
+      const msg = String(result.error);
+      if (/row-level security|policy|permission|not allowed|violates/i.test(msg) || pending) {
+        setError(
+          'Awaiting admin approval — you can edit your stall profile, but product create/update is blocked until approved.'
+        );
+      } else {
+        setError(result.error);
+      }
       return;
     }
     setOk(editingId ? 'Product updated.' : 'Product created.');
@@ -133,6 +147,20 @@ export default function FarmerProducts({ mode = 'list' }) {
 
   return (
     <div className="panel-grid">
+      {pending && (
+        <div className="dash-panel" role="status" style={{ borderColor: 'var(--primary)' }}>
+          <div className="panel-title">
+            <div>
+              <span className="eyebrow">Approval</span>
+              <h3>Awaiting admin approval</h3>
+            </div>
+          </div>
+          <p className="muted" style={{ margin: 0 }}>
+            You can sign in and update your stall profile, but new product listings stay blocked until an admin approves
+            your farmer account.
+          </p>
+        </div>
+      )}
       {(showForm || mode === 'add') && (
         <div className="dash-panel action-panel">
           <div className="panel-title">
@@ -191,10 +219,12 @@ export default function FarmerProducts({ mode = 'list' }) {
               Description
               <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} placeholder="Short description" />
             </label>
-            <label style={{ gridColumn: '1 / -1' }}>
-              Image URL
-              <input value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} placeholder="https://…" />
-            </label>
+            <ImageUploadField
+              label="Product image"
+              value={form.image_url}
+              onChange={(url) => setForm({ ...form, image_url: url })}
+              disabled={busy}
+            />
             <label>
               Available
               <select value={form.is_available ? 'yes' : 'no'} onChange={(e) => setForm({ ...form, is_available: e.target.value === 'yes' })}>
