@@ -1,0 +1,22 @@
+# Supabase local project config (optional CLI usage)
+# Docs: https://supabase.com/docs/guides/cli
+
+[project]
+id = "marketlink"
+
+[api]
+enabled = true
+port = 54321
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173", "http://localhost:8888"]
