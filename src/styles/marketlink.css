@@ -112,6 +112,7 @@ html.ml-lenis {
   font-family:Poppins,system-ui,sans-serif; background:var(--bg); color:var(--text);
   min-height:100vh; overflow-x:hidden; position:relative; transition:background .5s,color .5s;
 }
+.ml.menu-open-lock{overflow:visible}
 .ml.dark{
   --bg:#020604; --bg2:#04100a; --card:rgba(5,17,10,.74); --solid:#06120b; --border:rgba(57,255,136,.16);
   --text:#eafff1; --muted:#8db89a; --primary:#39ff88; --primary2:#a7f3c4; --soft:rgba(57,255,136,.09);
@@ -213,7 +214,7 @@ html[dir=rtl] .ml .nsearch{margin-left:0;margin-right:auto}
 .ml.dark .theme-sw .knob{left:30px;background:#4ade80;color:#03200d;transform:rotate(360deg)}
 .ml .avatar{width:40px;height:40px;border-radius:50%;overflow:hidden;border:2px solid var(--primary);box-shadow:var(--glow)}
 
-/* Mobile Vine Lattice Bloom menu */
+/* Mobile Vine Lattice Bloom menu (portaled to .ml — escapes nav backdrop-filter) */
 .ml .nav-burger{
   display:none; position:relative; width:42px; height:42px; border-radius:14px;
   border:1px solid var(--border); background:var(--card); color:var(--text);
@@ -238,42 +239,48 @@ html[dir=rtl] .ml .nsearch{margin-left:0;margin-right:auto}
 .ml .nav-burger.is-open .nav-burger-leaf{transform:rotate(120deg) scale(1.15); opacity:1}
 
 .ml .nav-vine{
-  position:fixed; inset:0; z-index:55; pointer-events:none;
+  position:fixed; inset:0; z-index:300;
+  visibility:hidden; opacity:0; pointer-events:none;
+  transition:opacity .28s ease, visibility .28s;
 }
-.ml .nav-vine.is-open{pointer-events:auto}
+.ml .nav-vine.is-open{
+  visibility:visible; opacity:1; pointer-events:auto;
+  transition:opacity .2s ease, visibility 0s;
+}
 .ml .nav-vine-scrim{
   position:absolute; inset:0; border:0; padding:0; cursor:pointer;
-  background:rgba(8,28,14,.42);
-  opacity:0; transition:opacity .4s ease;
-  backdrop-filter:blur(6px);
+  background:rgba(8,28,14,.48);
+  backdrop-filter:blur(7px);
 }
-.ml .nav-vine.is-open .nav-vine-scrim{opacity:1}
 .ml .nav-vine-sheet{
-  position:absolute; top:0; right:0; bottom:0; width:min(92vw,360px);
+  position:absolute; top:0; right:0; bottom:0;
+  width:min(92vw,360px); max-width:360px;
+  height:100%; max-height:100dvh;
+  box-sizing:border-box;
   background:
     radial-gradient(ellipse 80% 40% at 100% 0%, color-mix(in srgb,var(--primary) 18%,transparent), transparent 55%),
     linear-gradient(165deg, var(--solid), var(--bg2));
   border-left:1px solid var(--border);
   box-shadow:-24px 0 60px rgba(0,0,0,.28);
-  padding:78px 20px 28px;
+  padding:max(20px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
   display:flex; flex-direction:column; gap:16px;
-  clip-path:circle(0% at calc(100% - 34px) 34px);
-  transition:clip-path .7s cubic-bezier(.16,1.1,.3,1);
-  overflow:auto;
+  overflow:auto; -webkit-overflow-scrolling:touch;
+  transform:translate3d(104%,0,0);
+  transition:transform .55s cubic-bezier(.16,1.1,.3,1);
 }
 .ml .nav-vine.is-open .nav-vine-sheet{
-  clip-path:circle(160% at calc(100% - 34px) 34px);
+  transform:translate3d(0,0,0);
 }
 html[dir=rtl] .ml .nav-vine-sheet{
   right:auto; left:0; border-left:0; border-right:1px solid var(--border);
   box-shadow:24px 0 60px rgba(0,0,0,.28);
-  clip-path:circle(0% at 34px 34px);
+  transform:translate3d(-104%,0,0);
   background:
     radial-gradient(ellipse 80% 40% at 0% 0%, color-mix(in srgb,var(--primary) 18%,transparent), transparent 55%),
     linear-gradient(195deg, var(--solid), var(--bg2));
 }
 html[dir=rtl] .ml .nav-vine.is-open .nav-vine-sheet{
-  clip-path:circle(160% at 34px 34px);
+  transform:translate3d(0,0,0);
 }
 
 .ml .nav-vine-stem{
@@ -296,25 +303,35 @@ html[dir=rtl] .ml .nav-vine.is-open .nav-vine-sheet{
 .ml .nav-vine-stem span:nth-child(4){top:78%; left:auto; right:0; border-radius:0 50% 50% 50%; transform-origin:right center; animation-delay:.48s}
 html[dir=rtl] .ml .nav-vine-stem{left:auto; right:18px}
 
-.ml .nav-vine-head{display:flex; align-items:flex-start; justify-content:space-between; gap:12px}
+.ml .nav-vine-head{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-shrink:0}
 .ml .nav-vine-head h2{margin:4px 0 0; font-size:22px; letter-spacing:-.02em; line-height:1.2}
-.ml .nav-vine-head-ic{color:var(--primary); flex-shrink:0; margin-top:4px}
+.ml .nav-vine-close{
+  width:40px; height:40px; border-radius:12px; flex-shrink:0;
+  border:1px solid var(--border); background:var(--card); color:var(--text);
+  display:grid; place-items:center; position:relative;
+}
+.ml .nav-vine-close span{
+  position:absolute; width:16px; height:2px; border-radius:99px; background:currentColor;
+}
+.ml .nav-vine-close span:first-child{transform:rotate(45deg)}
+.ml .nav-vine-close span:last-child{transform:rotate(-45deg)}
+.ml .nav-vine-close:hover{border-color:var(--primary); color:var(--primary)}
 .ml .nav-vine.is-open .nav-vine-head{
-  animation:navItemRise .5s cubic-bezier(.2,1.15,.3,1) both; animation-delay:.12s;
+  animation:navItemRise .5s cubic-bezier(.2,1.15,.3,1) both; animation-delay:.1s;
 }
 
 .ml .nav-vine-search{
-  display:flex; align-items:center; gap:8px;
+  display:flex; align-items:center; gap:8px; flex-shrink:0;
   background:var(--input); border:1px solid var(--border); border-radius:999px;
   padding:10px 14px; color:var(--muted); font-size:13px;
 }
 .ml .nav-vine-search input{flex:1; min-width:0; border:0; background:transparent; outline:none; color:var(--text); font:inherit}
 .ml .nav-vine-search:focus-within{border-color:var(--primary); box-shadow:var(--glow)}
 .ml .nav-vine.is-open .nav-vine-search{
-  animation:navItemRise .5s cubic-bezier(.2,1.15,.3,1) both; animation-delay:.18s;
+  animation:navItemRise .5s cubic-bezier(.2,1.15,.3,1) both; animation-delay:.16s;
 }
 
-.ml .nav-vine-links{display:flex; flex-direction:column; gap:8px; margin-top:4px}
+.ml .nav-vine-links{display:flex; flex-direction:column; gap:8px; margin-top:4px; flex:1}
 .ml .nav-vine-link{
   display:flex; align-items:center; gap:12px;
   text-align:left; width:100%;
@@ -322,14 +339,14 @@ html[dir=rtl] .ml .nav-vine-stem{left:auto; right:18px}
   border:1px solid var(--border); background:var(--card);
   color:var(--text); font:inherit; font-size:15px; font-weight:650;
   opacity:0; transform:translateX(28px) scale(.96);
-  transition:border-color .2s, background .2s, box-shadow .2s, transform .2s;
+  transition:border-color .2s, background .2s, box-shadow .2s;
 }
 html[dir=rtl] .ml .nav-vine-link{text-align:right; transform:translateX(-28px) scale(.96)}
 .ml .nav-vine.is-open .nav-vine-link{
   animation:navTagSwing .58s cubic-bezier(.2,1.25,.3,1) both;
-  animation-delay:calc(.22s + var(--i,0) * .07s);
+  animation-delay:calc(.2s + var(--i,0) * .07s);
 }
-.ml .nav-vine-link:hover{border-color:var(--primary); box-shadow:var(--shadow); transform:translateX(0) scale(1)}
+.ml .nav-vine-link:hover{border-color:var(--primary); box-shadow:var(--shadow)}
 .ml .nav-vine-link.on{
   border-color:var(--primary); background:var(--soft); color:var(--primary);
   box-shadow:var(--glow);
@@ -343,10 +360,10 @@ html[dir=rtl] .ml .nav-vine-link{text-align:right; transform:translateX(-28px) s
 
 .ml .nav-vine-foot{
   margin-top:auto; display:flex; align-items:center; justify-content:space-between; gap:10px;
-  padding-top:12px; border-top:1px solid var(--border);
+  padding-top:12px; border-top:1px solid var(--border); flex-shrink:0;
 }
 .ml .nav-vine.is-open .nav-vine-foot{
-  animation:navItemRise .5s cubic-bezier(.2,1.15,.3,1) both; animation-delay:.55s;
+  animation:navItemRise .5s cubic-bezier(.2,1.15,.3,1) both; animation-delay:.5s;
 }
 
 @keyframes navLeafPop{
@@ -373,12 +390,17 @@ html[dir=rtl] .ml .nav-vine.is-open .nav-vine-link{animation-name:navTagSwingRtl
 @media (prefers-reduced-motion:reduce){
   .ml .nav-vine-sheet,
   .ml .nav-burger-lines i,
-  .ml .nav-burger-leaf{transition:none !important}
+  .ml .nav-burger-leaf,
+  .ml .nav-vine{transition:none !important}
   .ml .nav-vine.is-open .nav-vine-link,
   .ml .nav-vine.is-open .nav-vine-head,
   .ml .nav-vine.is-open .nav-vine-search,
   .ml .nav-vine.is-open .nav-vine-foot,
   .ml .nav-vine.is-open .nav-vine-stem span{animation:none !important; opacity:1 !important; transform:none !important}
+  .ml .nav-vine-sheet,
+  .ml .nav-vine.is-open .nav-vine-sheet,
+  html[dir=rtl] .ml .nav-vine-sheet,
+  html[dir=rtl] .ml .nav-vine.is-open .nav-vine-sheet{transform:none !important}
 }
 
 /* ============ HERO ============ */
@@ -1061,6 +1083,11 @@ html[dir=rtl] .ml .nav-vine.is-open .nav-vine-link{animation-name:navTagSwingRtl
   .ml .links{display:none}
   .ml .nav-burger{display:grid}
   .ml .nicons > .lang-switch{display:none}
+  .ml .nav-user-chip{display:none}
+  .ml .nav-in{gap:8px; min-width:0}
+  .ml .nicons{margin-left:auto; gap:2px; min-width:0}
+  .ml .nsearch{max-width:min(200px,28vw); margin-left:0}
+  .ml .logo small{display:none}
   .ml .pgrid{grid-template-columns:repeat(3,1fr)}
   .ml .band-in{grid-template-columns:1fr 1fr}
   .ml .band-crate{display:none}
@@ -1076,6 +1103,13 @@ html[dir=rtl] .ml .nav-vine.is-open .nav-vine-link{animation-name:navTagSwingRtl
   .ml .explore{grid-template-columns:1fr}
   .ml .farm-in{grid-template-columns:1fr}
   .ml .band-in{grid-template-columns:1fr}
+  .ml .nav-ic-bell,
+  .ml .nav-ic-dash,
+  .ml .nav-ic-orders,
+  .ml .ic.nav-logout{display:none}
+  .ml .theme-sw{width:52px; height:28px; margin-right:0; padding:0 5px}
+  .ml .theme-sw .knob{width:22px; height:22px}
+  .ml.dark .theme-sw .knob{left:26px}
 }
 @media (max-width:640px){
   .ml .wrap{padding:0 14px}
