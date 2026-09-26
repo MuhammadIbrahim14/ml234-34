@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Sun, Moon } from 'lucide-react';
+import { Leaf } from 'lucide-react';
 
 /**
- * Prism Tide — diagonal aurora waves + refracting sun/moon prism.
- * Distinct from leaf/iris bloom: liquid bands sweep, prism flips day↔night.
+ * Fresh Press Seal — MarketLink harvest wax-stamp.
+ * Orbiting produce motes collapse → seal stamps → ink ripples → theme flips.
+ * Short (~0.95s), premium, farm-market branded.
  */
 export function useThemeShed(setDark, dark) {
   const [fx, setFx] = useState(null);
@@ -22,18 +23,17 @@ export function useThemeShed(setDark, dark) {
       return;
     }
 
-    const streaks = Array.from({ length: 14 }, (_, i) => ({
-      id: `${Date.now()}-k${i}`,
-      top: 8 + Math.random() * 84,
-      delay: 0.25 + Math.random() * 0.55,
-      len: 40 + Math.random() * 120,
-      thick: 1.5 + Math.random() * 2.5,
-      skew: -18 - Math.random() * 12,
+    const stamp = Date.now();
+    const motes = Array.from({ length: 8 }, (_, i) => ({
+      id: `${stamp}-m${i}`,
+      angle: (i / 8) * 360,
+      hue: i % 4,
+      delay: i * 0.02,
     }));
 
-    setFx({ toDark: next, fromDark: dark, streaks });
-    window.setTimeout(() => setDark(next), 720);
-    window.setTimeout(() => setFx(null), 2200);
+    setFx({ toDark: next, fromDark: dark, motes });
+    window.setTimeout(() => setDark(next), 300);
+    window.setTimeout(() => setFx(null), 950);
   }
 
   return { setTheme, fx, shedding: Boolean(fx) };
@@ -42,49 +42,48 @@ export function useThemeShed(setDark, dark) {
 export default function ThemeShed({ fx }) {
   if (!fx) return null;
 
-  const { toDark, fromDark, streaks } = fx;
+  const { toDark, fromDark, motes } = fx;
   const toward = toDark ? 'to-dark' : 'to-light';
   const from = fromDark ? 'from-dark' : 'from-light';
 
   return (
-    <div className={`theme-shed theme-shed--run theme-shed--${from} theme-shed--${toward}`} aria-hidden="true">
+    <div
+      className={`theme-shed theme-shed--run theme-shed--${from} theme-shed--${toward}`}
+      aria-hidden="true"
+    >
       <div className="theme-shed-veil" />
+      <div className="theme-shed-flash" />
 
-      {/* Liquid aurora bands */}
-      <div className="theme-shed-waves">
-        <span className="theme-shed-wave w1" />
-        <span className="theme-shed-wave w2" />
-        <span className="theme-shed-wave w3" />
-        <span className="theme-shed-wave w4" />
+      <div className="theme-shed-ripples">
+        <span className="theme-shed-ripple r1" />
+        <span className="theme-shed-ripple r2" />
+        <span className="theme-shed-ripple r3" />
       </div>
 
-      {/* Refracting prism with sun/moon morph */}
-      <div className="theme-shed-prism">
-        <div className="theme-shed-prism-face">
-          <span className="theme-shed-celestial theme-shed-celestial--sun">
-            <Sun size={44} strokeWidth={1.75} />
-          </span>
-          <span className="theme-shed-celestial theme-shed-celestial--moon">
-            <Moon size={40} strokeWidth={1.75} />
-          </span>
-        </div>
-        <i className="theme-shed-prism-glow" />
+      <div className="theme-shed-motes">
+        {motes.map((m) => (
+          <i
+            key={m.id}
+            className={`theme-shed-mote hue-${m.hue}`}
+            style={{
+              ['--ma']: `${m.angle}deg`,
+              animationDelay: `${m.delay}s`,
+            }}
+          />
+        ))}
       </div>
 
-      {/* Speed streaks / light shards */}
-      {streaks.map((s) => (
-        <i
-          key={s.id}
-          className="theme-shed-streak"
-          style={{
-            top: `${s.top}%`,
-            width: s.len,
-            height: s.thick,
-            animationDelay: `${s.delay}s`,
-            ['--skew']: `${s.skew}deg`,
-          }}
-        />
-      ))}
+      <div className="theme-shed-seal">
+        <span className="theme-shed-seal-wax" />
+        <span className="theme-shed-seal-ring outer" />
+        <span className="theme-shed-seal-ring inner" />
+        <span className="theme-shed-seal-mark">
+          <Leaf size={34} strokeWidth={2.25} />
+        </span>
+        <span className="theme-shed-seal-band" />
+      </div>
+
+      <div className="theme-shed-bloom" />
     </div>
   );
 }

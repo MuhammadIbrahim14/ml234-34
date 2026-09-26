@@ -65,6 +65,9 @@
     "farmers": "کسان",
     "about": "تعارف",
     "primary": "اہم",
+    "openMenu": "مینو کھولیں",
+    "closeMenu": "مینو بند کریں",
+    "menuTitle": "مارکیٹ لنک دیکھیں",
     "searchPlaceholder": "مصنوعات، مارکیٹس تلاش کریں…",
     "theme": "تھیم تبدیل کریں",
     "notifications": "اطلاعات",
@@ -103,7 +106,8 @@
     "altField": "کھیت",
     "altFarmer": "کسان تازہ سبزیوں کے ساتھ",
     "altCrate": "سبزیوں کا کریٹ",
-    "altBasket": "تازہ پیداوار"
+    "altBasket": "تازہ پیداوار",
+    "altFieldNight": "رات کا کھیت"
   },
   "home": {
     "howTitle": "کیسے کام کرتا ہے",

@@ -65,6 +65,9 @@
     "farmers": "Farmers",
     "about": "About",
     "primary": "Primary",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "menuTitle": "Browse MarketLink",
     "searchPlaceholder": "Search products, markets…",
     "theme": "Toggle theme",
     "notifications": "Notifications",
@@ -103,7 +106,8 @@
     "altField": "Farm field",
     "altFarmer": "Farmer with fresh vegetables",
     "altCrate": "Crate of vegetables",
-    "altBasket": "Fresh produce"
+    "altBasket": "Fresh produce",
+    "altFieldNight": "Farm field at night"
   },
   "home": {
     "howTitle": "How it works",

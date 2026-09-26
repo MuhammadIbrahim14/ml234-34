@@ -24,7 +24,16 @@ export default function Hero() {
   return (
       <section className="hero">
         <div className="hero-bg" data-parallax-speed="0.35">
-          <Img src="/images/LandingBackground.jpg" alt={t("hero.altField")} />
+          <Img
+            className="hero-bg-layer hero-bg-day"
+            src="/images/LandingBackground.jpg"
+            alt={t("hero.altField")}
+          />
+          <Img
+            className="hero-bg-layer hero-bg-night"
+            src="/images/NightBackground.png"
+            alt={t("hero.altFieldNight")}
+          />
         </div>
         {[18, 52, 78].map((l, i) => (
           <Leaf key={i} className="fall" size={16 + (i % 2) * 6} style={{ left: l + "%", animationDelay: i * 3.2 + "s", animationDuration: 14 + i * 3 + "s" }} />

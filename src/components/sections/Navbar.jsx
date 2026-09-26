@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Sun, Moon, Heart, ShoppingCart, LayoutDashboard, Package, LogOut, LogIn, Bell } from 'lucide-react';
+import { Search, Sun, Moon, Heart, ShoppingCart, LayoutDashboard, Package, LogOut, LogIn, Bell, Leaf } from 'lucide-react';
 import { navigate } from '../../router';
 import Logo from '../../components/Logo';
 import LanguageSwitcher from '../LanguageSwitcher';
@@ -8,13 +8,15 @@ import { useAuth } from '../../context/AuthContext';
 import { flashToast } from '../../lib/flashToast';
 import { countUnreadNotifications } from '../../lib/api/notifications';
 
-export default function Navbar({ setTheme, dark, cart }) {
+export default function Navbar({ setTheme, dark, cart, active }) {
   const { t } = useTranslation();
   const { isAuthenticated, dashboardPath, signOut, profile, role, loading, user, isConfigured } = useAuth();
   const showDashboard = isAuthenticated && dashboardPath.startsWith('/dashboard');
   const displayName = profile?.full_name || profile?.email || t('common.member');
   const [unread, setUnread] = useState(0);
   const [navQ, setNavQ] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const path = active || (typeof window !== 'undefined' ? window.location.pathname : '/');
   const links = [
     [t('nav.home'), '/'],
     [t('nav.markets'), '/markets'],
@@ -44,8 +46,32 @@ export default function Navbar({ setTheme, dark, cart }) {
     };
   }, [isConfigured, isAuthenticated, user?.id]);
 
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [path]);
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    const onResize = () => {
+      if (window.innerWidth > 1150) setMenuOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('resize', onResize);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onResize);
+      document.body.style.overflow = prev;
+    };
+  }, [menuOpen]);
+
   async function onLogout() {
     if (loading) return;
+    setMenuOpen(false);
     await signOut();
     flashToast(t('nav.logoutToast'));
     navigate('/');
@@ -66,13 +92,19 @@ export default function Navbar({ setTheme, dark, cart }) {
   function submitSearch(e) {
     if (e) e.preventDefault();
     const q = navQ.trim();
+    setMenuOpen(false);
     navigate(q ? `/products?q=${encodeURIComponent(q)}` : '/products');
   }
 
+  function go(p) {
+    setMenuOpen(false);
+    navigate(p);
+  }
+
   return (
-    <header className="nav">
+    <header className={'nav' + (menuOpen ? ' nav-menu-open' : '')}>
       <div className="wrap nav-in">
-        <button className="nav-logo-btn" type="button" onClick={() => navigate('/')}>
+        <button className="nav-logo-btn" type="button" onClick={() => go('/')}>
           <Logo />
         </button>
         <nav className="links" aria-label={t('nav.primary')}>
@@ -80,7 +112,7 @@ export default function Navbar({ setTheme, dark, cart }) {
             <button
               key={p}
               type="button"
-              className={window.location.pathname === p ? 'on' : ''}
+              className={path === p ? 'on' : ''}
               onClick={() => navigate(p)}
             >
               {l}
@@ -167,6 +199,92 @@ export default function Navbar({ setTheme, dark, cart }) {
               <LogIn size={18} />
             </button>
           )}
+
+          <button
+            type="button"
+            className={'nav-burger' + (menuOpen ? ' is-open' : '')}
+            aria-expanded={menuOpen}
+            aria-controls="ml-vine-menu"
+            aria-label={menuOpen ? t('nav.closeMenu') : t('nav.openMenu')}
+            onClick={() => setMenuOpen((o) => !o)}
+          >
+            <span className="nav-burger-lines" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+            </span>
+            <Leaf className="nav-burger-leaf" size={14} aria-hidden />
+          </button>
+        </div>
+      </div>
+
+      <div
+        className={'nav-vine' + (menuOpen ? ' is-open' : '')}
+        id="ml-vine-menu"
+        aria-hidden={!menuOpen}
+        inert={menuOpen ? undefined : true}
+      >
+        <button
+          type="button"
+          className="nav-vine-scrim"
+          aria-label={t('nav.closeMenu')}
+          tabIndex={menuOpen ? 0 : -1}
+          onClick={() => setMenuOpen(false)}
+        />
+        <div className="nav-vine-sheet" role="dialog" aria-modal="true" aria-label={t('nav.menuTitle')}>
+          <div className="nav-vine-stem" aria-hidden="true">
+            <span /><span /><span /><span />
+          </div>
+          <div className="nav-vine-head">
+            <div>
+              <span className="eyebrow">{t('pages.brand')}</span>
+              <h2>{t('nav.menuTitle')}</h2>
+            </div>
+            <Leaf size={22} className="nav-vine-head-ic" aria-hidden />
+          </div>
+
+          <form className="nav-vine-search" onSubmit={submitSearch}>
+            <Search size={16} aria-hidden />
+            <input
+              value={navQ}
+              onChange={(e) => setNavQ(e.target.value)}
+              placeholder={t('nav.searchPlaceholder')}
+              aria-label={t('common.search')}
+            />
+          </form>
+
+          <nav className="nav-vine-links" aria-label={t('nav.primary')}>
+            {links.map(([l, p], i) => (
+              <button
+                key={p}
+                type="button"
+                className={'nav-vine-link' + (path === p ? ' on' : '')}
+                style={{ '--i': i }}
+                onClick={() => go(p)}
+              >
+                <span className="nav-vine-dot" aria-hidden="true" />
+                <span className="nav-vine-label">{l}</span>
+                <Leaf size={16} aria-hidden />
+              </button>
+            ))}
+          </nav>
+
+          <div className="nav-vine-foot">
+            <LanguageSwitcher />
+            {!isAuthenticated ? (
+              <button type="button" className="btn sm" onClick={() => go('/login')}>
+                {t('nav.login')}
+              </button>
+            ) : showDashboard ? (
+              <button type="button" className="btn sm" onClick={() => go(dashboardPath)}>
+                {t('nav.dashboard')}
+              </button>
+            ) : (
+              <button type="button" className="btn sm" onClick={() => go('/orders')}>
+                {t('nav.orders')}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </header>

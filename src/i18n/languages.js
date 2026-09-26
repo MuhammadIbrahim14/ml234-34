@@ -6,7 +6,7 @@
 export const LANGUAGES = [
   { code: 'en', name: 'English', nativeName: 'English', dir: 'ltr', enabled: true },
   { code: 'ur', name: 'Urdu', nativeName: 'اردو', dir: 'rtl', enabled: true },
-  { code: 'pa', name: 'Punjabi', nativeName: 'پنجابی', dir: 'rtl', enabled: false },
+  { code: 'pa', name: 'Punjabi', nativeName: 'پنجابی', dir: 'rtl', enabled: true },
   { code: 'sd', name: 'Sindhi', nativeName: 'سنڌي', dir: 'rtl', enabled: false },
   { code: 'ps', name: 'Pashto', nativeName: 'پښتو', dir: 'rtl', enabled: false },
   { code: 'bal', name: 'Balochi', nativeName: 'بلوچی', dir: 'rtl', enabled: false },
