@@ -9,6 +9,19 @@ export function hasCoords(lat, lng) {
   );
 }
 
+/** Great-circle distance in kilometres (Haversine). */
+export function distanceKm(lat1, lng1, lat2, lng2) {
+  if (!hasCoords(lat1, lng1) || !hasCoords(lat2, lng2)) return null;
+  const R = 6371;
+  const toRad = (d) => (Number(d) * Math.PI) / 180;
+  const dLat = toRad(Number(lat2) - Number(lat1));
+  const dLng = toRad(Number(lng2) - Number(lng1));
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 /**
  * Parse lat/lng from Google Maps, OpenStreetMap, geo:, or "lat,lng" paste.
  * Returns { latitude, longitude } or null.

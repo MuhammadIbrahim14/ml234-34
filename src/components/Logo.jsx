@@ -1,10 +1,22 @@
-import { Leaf } from "lucide-react";
+import { Leaf } from 'lucide-react';
 
-const Logo = () => (
-  <div className="logo">
-    <div className="logo-ic"><Leaf size={22} /></div>
-    <div><b>MarketLink</b><small>Fresh • Local • Together</small></div>
-  </div>
-);
-
-export default Logo;
+/** Animated MarketLink mark — orbiting leaf seal (no tagline). */
+export default function Logo() {
+  return (
+    <div className="logo ml-logo" aria-label="MarketLink">
+      <div className="ml-logo-mark" aria-hidden="true">
+        <span className="ml-logo-ring" />
+        <span className="ml-logo-ring r2" />
+        <span className="ml-logo-core">
+          <Leaf size={18} strokeWidth={2.4} />
+        </span>
+        <span className="ml-logo-dot d1" />
+        <span className="ml-logo-dot d2" />
+        <span className="ml-logo-dot d3" />
+      </div>
+      <b className="ml-logo-word">
+        Market<span>Link</span>
+      </b>
+    </div>
+  );
+}
