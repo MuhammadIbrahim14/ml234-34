@@ -729,7 +729,48 @@ html[dir=rtl] .ml .nav-vine.is-open .nav-vine-link{animation-name:navTagSwingRtl
 .ml .feat b{display:block;font-size:13px}
 .ml .feat small{font-size:11px;color:var(--muted)}
 
-.ml .hero-r{position:relative;min-height:500px}
+.ml .hero-r{position:relative;min-height:0;display:flex;align-items:center;justify-content:flex-end}
+.ml .hero-visit{
+  position:relative;width:100%;max-width:420px;padding:22px 22px 18px;border-radius:28px;
+  background:color-mix(in srgb, var(--solid) 88%, transparent);
+  border:1px solid var(--border);box-shadow:var(--shadow);backdrop-filter:blur(16px);
+  overflow:hidden;isolation:isolate;
+}
+.ml.dark .hero-visit{
+  border-color:rgba(74,222,128,.4);box-shadow:var(--glow);
+  background:color-mix(in srgb, var(--solid) 82%, transparent);
+}
+.ml .hero-visit-glow{
+  position:absolute;inset:-40% -20% auto auto;width:220px;height:220px;border-radius:50%;
+  background:radial-gradient(circle, color-mix(in srgb, var(--primary) 28%, transparent), transparent 70%);
+  pointer-events:none;z-index:0;
+}
+.ml .hero-visit-head,.ml .hero-weather,.ml .hero-weather-tip,.ml .hero-nearest,.ml .hero-visit-actions{position:relative;z-index:1}
+.ml .hero-visit-head{margin-bottom:14px}
+.ml .hero-visit-head h3{margin:6px 0 0;font-size:22px;line-height:1.2;font-weight:700;letter-spacing:-.02em}
+.ml .hero-weather{display:flex;align-items:center;gap:14px;padding:14px;border-radius:18px;background:var(--soft);border:1px solid var(--border)}
+.ml.dark .hero-weather{border-color:rgba(74,222,128,.28)}
+.ml .hero-weather-ic{
+  width:56px;height:56px;border-radius:16px;display:grid;place-items:center;flex-shrink:0;
+  background:var(--card);color:var(--primary);border:1px solid var(--border);
+}
+.ml.dark .hero-weather-ic{box-shadow:var(--glow);border-color:rgba(74,222,128,.4)}
+.ml .hero-weather-meta{min-width:0;flex:1}
+.ml .hero-weather-meta b{display:flex;align-items:baseline;gap:8px;font-size:28px;line-height:1;letter-spacing:-.03em}
+.ml .hero-weather-meta b small{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:0}
+.ml .hero-weather-meta span{display:block;margin-top:6px;font-size:12.5px;color:var(--muted);line-height:1.4}
+.ml .hero-weather-tip{margin:12px 0 0;font-size:13px;line-height:1.55;color:var(--text)}
+.ml .hero-nearest{
+  margin-top:14px;padding:14px;border-radius:18px;border:1px dashed color-mix(in srgb, var(--primary) 45%, var(--border));
+  background:color-mix(in srgb, var(--card) 70%, transparent);
+}
+.ml .hero-nearest-label{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--primary);margin-bottom:8px}
+.ml .hero-nearest-name{display:block;font-size:16px;line-height:1.25;margin:0}
+.ml .hero-nearest small{display:block;margin-top:4px;font-size:12px;color:var(--muted);line-height:1.4}
+.ml .hero-nearest-addr{opacity:.9}
+.ml .hero-nearest .muted{margin:0;font-size:13px}
+.ml .hero-visit-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.ml .hero-visit-actions .btn{display:inline-flex;align-items:center;gap:6px}
 .ml .ring{position:absolute;left:4%;top:4%;width:430px;height:430px;border-radius:50%;border:2px dashed var(--primary);opacity:.35;animation:spin 40s linear infinite}
 .ml .photo{position:absolute;left:8%;top:6%;width:400px;height:460px;border-radius:200px 200px 36px 36px;overflow:hidden;box-shadow:0 30px 60px -20px rgba(20,60,30,.45);border:6px solid var(--solid)}
 .ml.dark .photo{border-color:rgba(74,222,128,.5);box-shadow:0 0 50px -10px rgba(74,222,128,.45),0 30px 60px -20px #000}
@@ -1192,7 +1233,8 @@ html[dir=rtl] .ml .nav-vine.is-open .nav-vine-link{animation-name:navTagSwingRtl
 @media (max-width:640px){
   .ml .wrap{padding:0 14px}
   .ml .nsearch{display:none}
-  .ml .hero-r{min-height:440px}
+  .ml .hero-r{min-height:0}
+  .ml .hero-visit{max-width:100%;margin-top:8px}
   .ml .ring{width:300px;height:300px}
   .ml .photo{left:4%;width:74%;height:380px}
   .ml .crate-photo{width:120px;height:95px;left:0}

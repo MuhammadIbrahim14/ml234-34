@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, Sun, Moon, Heart, ShoppingCart, LayoutDashboard, Package, LogOut, LogIn, Bell, Leaf } from 'lucide-react';
+import { Sun, Moon, Heart, ShoppingCart, LayoutDashboard, Package, LogOut, LogIn, Bell, Leaf } from 'lucide-react';
 import { navigate } from '../../router';
 import Logo from '../../components/Logo';
 import LanguageSwitcher from '../LanguageSwitcher';
@@ -15,7 +15,6 @@ export default function Navbar({ setTheme, dark, cart, active }) {
   const showDashboard = isAuthenticated && dashboardPath.startsWith('/dashboard');
   const displayName = profile?.full_name || profile?.email || t('common.member');
   const [unread, setUnread] = useState(0);
-  const [navQ, setNavQ] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [portalHost, setPortalHost] = useState(null);
   const navRef = useRef(null);
@@ -100,13 +99,6 @@ export default function Navbar({ setTheme, dark, cart, active }) {
     }
   }
 
-  function submitSearch(e) {
-    if (e) e.preventDefault();
-    const q = navQ.trim();
-    setMenuOpen(false);
-    navigate(q ? `/products?q=${encodeURIComponent(q)}` : '/products');
-  }
-
   function go(p) {
     setMenuOpen(false);
     navigate(p);
@@ -145,16 +137,6 @@ export default function Navbar({ setTheme, dark, cart, active }) {
             <span aria-hidden="true" />
           </button>
         </div>
-
-        <form className="nav-vine-search" onSubmit={submitSearch}>
-          <Search size={16} aria-hidden />
-          <input
-            value={navQ}
-            onChange={(e) => setNavQ(e.target.value)}
-            placeholder={t('nav.searchPlaceholder')}
-            aria-label={t('common.search')}
-          />
-        </form>
 
         <nav className="nav-vine-links" aria-label={t('nav.primary')}>
           {links.map(([l, p], i) => (
@@ -210,15 +192,6 @@ export default function Navbar({ setTheme, dark, cart, active }) {
             </button>
           ))}
         </nav>
-        <form className="nsearch" onSubmit={submitSearch}>
-          <Search size={16} aria-hidden />
-          <input
-            value={navQ}
-            onChange={(e) => setNavQ(e.target.value)}
-            placeholder={t('nav.searchPlaceholder')}
-            aria-label={t('common.search')}
-          />
-        </form>
         <div className="nicons">
           <LanguageSwitcher />
           <button className="theme-sw" type="button" onClick={() => setTheme()} aria-label={t('nav.theme')}>

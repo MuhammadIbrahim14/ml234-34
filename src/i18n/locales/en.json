@@ -107,7 +107,42 @@
     "altFarmer": "Farmer with fresh vegetables",
     "altCrate": "Crate of vegetables",
     "altBasket": "Fresh produce",
-    "altFieldNight": "Farm field at night"
+    "altFieldNight": "Farm field at night",
+    "visitEyebrow": "Visit planner",
+    "visitTitle": "Weather & nearest market",
+    "locating": "Finding your spot…",
+    "nearYou": "Near you",
+    "humidity": "{{n}}% humidity",
+    "weatherFallback": "Weather",
+    "weatherFallbackSub": "Allow location for live conditions",
+    "nearestLabel": "Nearest market",
+    "kmAway": "{{km}} km away",
+    "noNearest": "No nearby markets with map pins yet.",
+    "locDenied": "Location blocked — enable it to see weather and nearest market.",
+    "useLocation": "Use my location",
+    "exploreMarkets": "Explore markets",
+    "weatherCond": {
+      "clear": "Clear",
+      "mainlyClear": "Mostly clear",
+      "partlyCloudy": "Partly cloudy",
+      "overcast": "Overcast",
+      "fog": "Foggy",
+      "drizzle": "Drizzle",
+      "rain": "Rain",
+      "sleet": "Sleet",
+      "snow": "Snow",
+      "showers": "Showers",
+      "storm": "Storm",
+      "unknown": "—"
+    },
+    "weatherTip": {
+      "clear": "Great day for market pickup — support a local stall.",
+      "ok": "Good conditions to browse markets and pre-order.",
+      "rain": "Rain expected — still shop local; bring a bag and check open hours.",
+      "fog": "Foggy out — leave a little early for pickup.",
+      "hot": "It's hot — prefer morning pickup and carry water.",
+      "cold": "Chilly day — warm drink after you pick up fresh produce."
+    }
   },
   "home": {
     "howTitle": "How it works",
